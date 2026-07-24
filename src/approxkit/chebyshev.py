@@ -1,16 +1,36 @@
+from __future__ import annotations
 import warnings
+from collections.abc import Callable
+from dataclasses import dataclass
 from functools import reduce
+from typing import Any, Literal, Sequence, Self
 
-
-from numpy.polynomial.polyutils import RankWarning
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
-
 from numpy.polynomial.chebyshev import chebval  # chebpts1, chebpts2
+from numpy.polynomial.polyutils import RankWarning
+from numpy.typing import ArrayLike, NDArray
 
 from scipy.fft import dct
 
-# ChebyshevND
+
+def map_from_interval(
+    x: ArrayLike,
+    a: float,
+    b: float,
+) -> NDArray:
+    """F(x), where F: [a,b] -> [-1,1].
+
+    Examples
+    --------
+    >>> x = np.array([-1, 0, 1])
+    >>> np.allclose(
+    ...     map_from_interval(map_to_interval(x, 2, 4), 2, 4),
+    ...     x
+    ... )
+    True
+    """
+    return (x - (b + a) / 2.0) * (2.0 / (b - a))
+
 
 def map_to_interval(
     x: ArrayLike,
@@ -21,24 +41,21 @@ def map_to_interval(
     return (x * (b - a) + (b + a)) / 2.0
 
 
-def chebyshev_lobatto_nodes(n):
+def chebyshev_lobatto_nodes(n: int) -> NDArray:
     """
-    Return roots of derivative of Chebyshev polynomial of the first kind.
+    Return Chebyshev-Lobatto nodes (roots of the derivative of the
+    Chebyshev polynomial of the first kind).
 
     Parameters
     ----------
-    n : scalar, integer
-        degree of Chebyshev polynomial.
+    n : int
+        Degree of Chebyshev polynomial T_n.
 
     Notes
     ------
-    All local extreme values of the polynomial are either -1 or 1. So,
-    CHEBPOLY( N, CHEBEXTR(N) ) ) return the same as (-1).^(N:-1:0)
-    except for the numerical noise in the former.
-
-    Because the extreme values of Chebyshev polynomials of the first
-    kind are either -1 or 1, their roots are often used as starting
-    values for the nodes in minimax approximations.
+    Because the extrema of Chebyshev polynomials of the first
+    kind occur at ±1, these points are often used as initial
+    nodes in minimax approximation algorithms.
 
     Examples
     --------
@@ -57,22 +74,24 @@ def chebyshev_lobatto_nodes(n):
     http://en.wikipedia.org/wiki/Chebyshev_nodes
     http://en.wikipedia.org/wiki/Chebyshev_polynomials
     """
+    if n < 0:
+        raise ValueError("n must be non-negative")
     if n == 0:
         return np.array([0.0])
-    return - np.cos((np.pi * np.arange(n + 1)) / n)
+    return -np.cos((np.pi * np.arange(n + 1)) / n)
 
 
 chebextr = chebyshev_lobatto_nodes  # alias
 
 
-def chebyshev_nodes(n):
+def chebyshev_nodes(n: int) -> NDArray:
     """
-    Return roots of Chebyshev polynomial of the first kind.
+    Return Chebyshev nodes (roots of the Chebyshev polynomial of the first kind).
 
     Parameters
     ----------
-    n : scalar, integer
-        degree of Chebyshev polynomial.
+    n : int
+        Degree of Chebyshev polynomial T_n.
 
     Notes
     -----
@@ -107,7 +126,192 @@ def chebyshev_nodes(n):
 chebroot = chebyshev_nodes  # alias
 
 
-def chebfit_dct(f, n=(10, ), domain=None, args=()):
+def _check_domain(
+    domain: ArrayLike,
+    ndim: int,
+) -> NDArray:
+    """Validate and normalize domain intervals."""
+    domain = np.asarray(domain)
+    if domain.size % 2:
+        raise ValueError(
+            "domain must contain pairs (a, b)"
+        )
+    domain = domain.reshape((-1, 2))
+    if domain.shape[0] != ndim:
+        raise ValueError(
+            "domain must contain one interval per dimension"
+        )
+    return domain
+
+
+@dataclass
+class ChebyshevND:
+    """
+    N-dimensional Chebyshev approximation.
+
+    Parameters
+    ----------
+    coef : ndarray
+        Chebyshev coefficients.
+    domain : array_like, optional
+        Domain intervals [(a1, b1), ..., (an, bn)].
+
+    Examples
+    --------
+    >>> approx = ChebyshevND.fit_dct(np.exp, n=9, domain=[(0, 2)])
+    >>> approx
+    ChebyshevND(degree=(8,), domain=[[0, 2]])
+
+    >>> x = np.linspace(0, 2, 5)
+    >>> y = approx(x)
+    >>> np.allclose(y, np.exp(x), atol=1e-10)
+    True
+
+    2D:
+    >>> fun = lambda x, y: np.tanh(x + y)
+    >>> approx = ChebyshevND.fit_dct(fun, n=(12, 12))
+    >>> approx
+    ChebyshevND(degree=(11, 11), domain=None)
+
+    >>> x = np.linspace(-1, 1, 5)
+    >>> X, Y = np.meshgrid(x, x, indexing="ij")
+    >>> Z = approx(X, Y)
+    >>> np.allclose(fun(X,Y), Z, atol=1e-10)
+    True
+    """
+    coef: ArrayLike
+    domain: ArrayLike | None = None
+
+    def __post_init__(self) -> None:
+        self.coef = np.asarray(self.coef)
+        if self.domain is not None:
+            self.domain = _check_domain(
+                self.domain,
+                self.coef.ndim
+            )
+
+    @property
+    def degree(self) -> tuple[int, ...]:
+        """Degree of polynomial(s)"""
+        return tuple(n - 1 for n in self.coef.shape)
+
+    @property
+    def ndim(self) -> int:
+        return self.coef.ndim
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return self.coef.shape
+
+    def _normalize(
+        self,
+        *xi: ArrayLike,
+    ) -> tuple[NDArray, ...]:
+        if len(xi) != self.ndim:
+            raise ValueError(
+                f"expected {self.ndim} coordinates, got {len(xi)}"
+            )
+        if self.domain is None:
+            return tuple(np.asarray(x) for x in xi)
+
+        return tuple(
+            map_from_interval(x, d[0], d[1])
+            for x, d in zip(xi, self.domain)
+        )
+
+    def eval_normalized(self, *xi: ArrayLike) -> NDArray:
+        return chebvalnd(self.coef, *xi)
+
+    def __call__(self, *xi: ArrayLike) -> NDArray:
+        """
+        Evaluate the approximation.
+        """
+        xi = self._normalize(*xi)
+        return chebvalnd(self.coef, *xi)
+
+    def copy(self) -> Self:
+        return type(self)(
+            self.coef.copy(),
+            None if self.domain is None else self.domain.copy(),
+        )
+
+    def grid(self, *xi: ArrayLike) -> NDArray:
+        """
+        Evaluate on Cartesian product grid.
+
+        Notes
+        -----
+        xi are physical coordinates.
+        """
+        xi = self._normalize(*xi)
+        return chebgridnd(self.coef, *xi)
+
+    def truncate(self, *degrees: int) -> Self:
+        """
+        Return lower-order approximation.
+        """
+        if len(degrees) != self.ndim:
+            raise ValueError(
+                f"expected {self.ndim} degrees, got {len(degrees)}"
+            )
+        if any(d < 0 for d in degrees):
+            raise ValueError(
+                "degrees must be non-negative"
+            )
+        slices = tuple(slice(0, d + 1) for d in degrees)
+        return type(self)(
+            self.coef[slices],
+            None if self.domain is None else self.domain.copy(),
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"ChebyshevND("
+            f"degree={self.degree}, "
+            f"domain={self.domain.tolist() if self.domain is not None else None}"
+            f")"
+        )
+
+    @classmethod
+    def fit_dct(
+        cls,
+        f: Callable[..., ArrayLike] | ArrayLike,
+        n: int | Sequence[int] = (10,),
+        domain: ArrayLike | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        coef = chebfit_dct(
+            f,
+            n=n,
+            domain=domain,
+            **kwargs,
+        )
+        return cls(coef, domain)
+
+    @classmethod
+    def fit(
+        cls,
+        xi: tuple[ArrayLike, ...],
+        values: ArrayLike,
+        deg: Sequence[int] | NDArray,
+        **kwargs: Any,
+    ) -> Self:
+        coef = chebfitnd(
+            xi,
+            values,
+            deg,
+            **kwargs,
+        )
+        return cls(coef)
+
+
+def chebfit_dct(
+    f: Callable[..., ArrayLike] | ArrayLike,
+    n: int | Sequence[int] = (10,),
+    domain: ArrayLike | None = None,
+    args: tuple[Any, ...] = (),
+    indexing: Literal["ij", "xy"] = "ij"
+) -> NDArray:
     """
     Fit Chebyshev series to N-dimensional function
     so that f(x1, x2,..., xn) can be approximated by:
@@ -119,25 +323,42 @@ def chebfit_dct(f, n=(10, ), domain=None, args=()):
 
     Parameters
     ----------
-    f : callable
-        function to approximate
-    n : list of integers, optional
-        number of base points (abscissas) used for each dimension.
-        Default n=10 (maximum 50)
-    domain : vector [a1,b1,a2,b2 ,..., an, bn], optional
-        defining the rectangle [a1, b1] x [a2, b2] x ...x [an, bn].
-        (default domain = (-1,1) * len(n))
+    f : callable or array_like
+        Function to approximate, or function values sampled at
+        Chebyshev nodes.
+    n : int or sequence of int, optional
+        Number of Chebyshev nodes used in each dimension.
+        Default n=10. Values larger than about 50 may lead to noisy
+        high-order coefficients.
+    domain : array_like, optional
+        Domain intervals [(a1, b1), ..., (an, bn)].
+        (default domain = [(-1, 1)] * len(n))
+    args :
+        additional arguments to pass to f.
+    indexing : {'xy', 'ij'}, optional
+        Cartesian ('xy') or matrix ('ij', default) indexing of output.
 
     Returns
     -------
     ck : ndarray
         polynomial coefficients in Chebyshev form.
 
+    Notes
+    -----
+    If `f` is callable, it is evaluated at Chebyshev nodes.
+
+    If `f` is array_like, it is interpreted as values already
+    sampled at Chebyshev nodes and transformed directly.
+
+    For large n, higher-order coefficients may become dominated by
+    numerical noise. These noisy coefficients do not improve the
+    approximation and can reduce accuracy.
+
     Examples
     --------
     Fit exponential function
 
-    >>> x = chebroot(9)
+    >>> x = chebyshev_nodes(9)
     >>> c9 = chebfit_dct(lambda x: np.tanh(x) + 0.5, 9)
     >>> np.allclose(c9, [5.00000000e-01,   8.11675684e-01,  -9.86864911e-17,
     ...                 -5.42457905e-02,  -2.71387850e-16,   4.51658839e-03,
@@ -146,7 +367,7 @@ def chebfit_dct(f, n=(10, ), domain=None, args=()):
     >>> np.allclose(chebvalnd(c9, x), np.tanh(x)+0.5)
     True
 
-    >>> x1,x2 = np.meshgrid(x,x)
+    >>> x1,x2 = np.meshgrid(x, x, indexing="ij")
     >>> c99 = chebfit_dct(lambda x,y: np.tanh(x+y) + 0.5, n=(9, 9))
     >>> np.allclose(chebvalnd(c99, x1, x2), np.tanh(x1+x2)+0.5)
     True
@@ -157,20 +378,34 @@ def chebfit_dct(f, n=(10, ), domain=None, args=()):
     ...                   1.20520053e-01,   1.48805268e-02,   1.47579673e-03,
     ...                   1.21719524e-04])
     True
-    >>> x1 = map_to_interval(wp.chebroot(9), *domain)
-    >>> ck9 = chebfit(np.exp(x1))  # Note
-    >>> np.allclose(ck9, [5.40019009e-07,   8.69418381e-06,   1.22261037e-04,
-    ...                   1.47582673e-03,   1.48805283e-02,   1.20520053e-01,
-    ...                   7.38000848e-01,   3.07252345e+00,   3.44152387e+00])
+    >>> x7 = map_to_interval(chebyshev_nodes(7), *domain)
+    >>> ck7b = chebfit_dct(np.exp(x7))
+    >>> np.allclose(ck7, ck7b)
     True
+
+    >>> x9 = map_to_interval(chebyshev_nodes(9), *domain)
+    >>> ck9 = chebfit_dct(np.exp(x9))
+    >>> np.allclose(ck9, [3.44152387e+00, 3.07252345e+00, 7.38000848e-01,
+    ...                   1.20520053e-01, 1.48805283e-02, 1.47582673e-03,
+    ...                   1.22261037e-04, 8.69418381e-06, 5.40019009e-07])
+    True
+    >>> ck49 = chebfit_dct(np.exp, 49, domain)
+    >>> len(ck49)
+    49
+    >>> ck49m = np.array(ck49)
+    >>> ck49m[np.abs(ck49) < 1e-14] = 0  # Truncate noisy coefs
 
     >>> import matplotlib.pyplot as plt
     >>> x = np.linspace(0, 4)
     >>> xn = map_from_interval(x, *domain)
-    >>> h0 = plt.plot(x, np.exp(x), 'r', label='exp')
-    >>> h1 = plt.plot(x, chebvalnd(ck7, xn), 'g.', label='ck7')
-    >>> h2 = plt.plot(x, chebval(xn, ck9),'b.', label='ck9')
-    >>> h3 = plt.legend()
+    >>> y = np.exp(x)
+
+    >>> h1 = plt.plot(x, y - chebvalnd(ck7, xn), 'g.', label='ck7')
+    >>> h2 = plt.plot(x, y - chebval(xn, ck9),'b.', label='ck9')
+    >>> h3 = plt.plot(x, y - chebval(xn, ck49),'r.', label='ck49')
+    >>> h4 = plt.plot(x, y - chebval(xn, ck49m),'m.', label='ck49m')
+    >>> h5 = plt.legend()
+    >>> h6 = plt.title('Errors for approximating np.exp')
     >>> plt.close()
 
     See also
@@ -189,33 +424,54 @@ def chebfit_dct(f, n=(10, ), domain=None, args=()):
     Approximations for Functions of a Single Independent Variable"
     Journal of the ACM (JACM), Vol. 12 ,  Issue 3, pp 295 - 314
     """
-    n = np.atleast_1d(n)
+    n = np.asarray(np.atleast_1d(n), dtype=int)
+    if np.any(n <= 0):
+        raise ValueError("n must contain positive integers")
     if np.any(n > 50):
-        warnings.warn('CHEBFIT should only be used for n<50')
+        warnings.warn(
+            "n > 50 may lead to noisy high-order coefficients",
+            stacklevel=2
+        )
 
     if callable(f):
         if domain is None:
-            domain = (-1, 1) * len(n)
-        domain = np.atleast_2d(domain).reshape((-1, 2))
-        xi = [map_to_interval(chebroot(ni), d[0], d[1])
+            domain = [(-1, 1)] * len(n)
+        domain = _check_domain(domain, len(n))
+        xi = [map_to_interval(chebyshev_nodes(ni), d[0], d[1])
               for ni, d in zip(n, domain)]
-        Xi = tuple(np.meshgrid(*xi))
-        ck = f(*(Xi + args)) / np.prod(n)
+        Xi = tuple(np.meshgrid(*xi, indexing=indexing))
+        ck = np.asarray(f(*(Xi + args))) / np.prod(n)
+        expected_shape = Xi[0].shape
+
+        if ck.shape != expected_shape:
+            raise ValueError(
+                f"expected function values with shape "
+                f"{expected_shape}, got {ck.shape}"
+            )
     else:
-        ck = f / np.prod(n)
-        n = ck.shape
+        n = np.shape(f)
+        ck = np.asarray(f) / np.prod(n)
+
 
     ndim = len(n)
 
     for i in range(ndim):
         ck = dct(ck[..., ::-1])
-        ck[..., 0] /= 2.
-        if i < ndim - 1:
+        # Adjust the constant term for the Chebyshev/DCT-I normalization.
+        ck[..., 0] /= 2.0
+        if i < ndim - 1 or indexing == "ij":
             ck = np.rollaxis(ck, axis=-1)
     return ck
 
 
-def chebfitnd(xi, f, deg, rcond=None, full=False, w=None):
+def chebfitnd(
+    xi: tuple[ArrayLike, ...],
+    f: ArrayLike,
+    deg: Sequence[int] | NDArray,
+    rcond: float | None = None,
+    full: bool = False,
+    w: ArrayLike | None = None,
+) -> NDArray | tuple[NDArray, list[Any]]:
     """
     Least squares fit of Chebyshev series to N-dimensional data.
     Return the coefficients of a Chebyshev series of degree `deg` that is the
@@ -229,11 +485,11 @@ def chebfitnd(xi, f, deg, rcond=None, full=False, w=None):
 
     Parameters
     ----------
-    xi: tuple
+    xi: tuple of array_like
         x1-, x2-,....xn-coordinates of the sample points.
     f : array_like
         function values at the sample points ``(x1[i], x2[i], ..., xn[i])``.
-    deg : list
+    deg : sequence of int
         Degrees of the fitting series in the x1, x2, ..., xn directions,
         respectively.
     rcond : float, optional
@@ -345,12 +601,12 @@ def chebfitnd(xi, f, deg, rcond=None, full=False, w=None):
 
     degrees = np.asarray(deg, dtype=int)
     orders = degrees + 1
-    order = np.prod(orders)
+    order = int(np.prod(orders))
 
     lhs, rhs, scl = _init(xi, z, w, degrees, order)
 
     if rcond is None:
-        rcond = xi[0].size * np.finfo(xi[0].dtype).eps
+        rcond = np.asarray(xi[0]).size * np.finfo(float).eps
 
     # Solve the least squares problem.
     c, resids, rank, s = np.linalg.lstsq(lhs / scl, rhs, rcond)
@@ -358,13 +614,16 @@ def chebfitnd(xi, f, deg, rcond=None, full=False, w=None):
 
     if full:
         return c, [resids, rank, s, rcond]
-    elif rank != order:
+    if rank != order:
         msg = "The fit may be poorly conditioned"
         warnings.warn(msg, RankWarning)
     return c
 
 
-def chebvalnd(c, *xi):
+def chebvalnd(
+    c: ArrayLike,
+    *xi: ArrayLike,
+) -> NDArray:
     """
     Evaluate a N-D Chebyshev series at points (x1, x2, ..., xn).
 
@@ -409,8 +668,12 @@ def chebvalnd(c, *xi):
     """
     try:
         xi = np.asarray(xi)
-    except Exception:
-        raise ValueError("evaluation coordinates have incompatible shapes")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("evaluation coordinates have incompatible shapes") from exc
+    if len(xi) == 0:
+        raise ValueError(
+            "expected at least one coordinate"
+        )
     chebval = np.polynomial.chebyshev.chebval
     c = chebval(xi[0], c)
     for x in xi[1:]:
@@ -418,7 +681,10 @@ def chebvalnd(c, *xi):
     return c
 
 
-def chebvandernd(deg, *xi):
+def chebvandernd(
+    deg: Sequence[int],
+    *xi: ArrayLike,
+) -> NDArray:
     """Pseudo-Vandermonde matrix of given degrees.
 
     Returns the pseudo-Vandermonde matrix of degrees `deg` and sample
@@ -444,8 +710,8 @@ def chebvandernd(deg, *xi):
 
     Parameters
     ----------
-    deg : list of ints
-        List of maximum degrees of the form [x1_deg, x2_deg, ...,xn_deg].
+    deg : sequence of int
+        Sequence of maximum degrees of the form [x1_deg, x2_deg, ...,xn_deg].
     x1, x2, ..., xn : array_like
         Arrays of point coordinates, all of the same shape. The dtypes will
         be converted to either float64 or complex128 depending on whether
@@ -487,7 +753,10 @@ def chebvandernd(deg, *xi):
     return v.reshape(v.shape[:-ndim] + (-1,))
 
 
-def chebgridnd(c, *xi):
+def chebgridnd(
+    c: ArrayLike,
+    *xi: ArrayLike,
+) -> NDArray:
     """
     Evaluate a N-D Chebyshev series on the Cartesian product of x1, x2,..., xn.
 
@@ -530,6 +799,21 @@ def chebgridnd(c, *xi):
         The values of the N dimensional polynomial at points in the Cartesian
         product of `x1`, `x2`, ... and `xn`.
 
+    Examples
+    --------
+    >>> c = np.zeros((3, 3))
+    >>> c[0, 0] = 1
+
+    >>> x = np.linspace(-1, 1, 4)
+    >>> y = np.linspace(-1, 1, 5)
+
+    >>> np.allclose(
+    ...    chebgridnd(c, x, y),
+    ...    np.ones((4, 5))
+    ... )
+    True
+
+
     See Also
     --------
     chebval, chebvalnd, chebfitnd
@@ -537,3 +821,23 @@ def chebgridnd(c, *xi):
     for x in xi:
         c = chebval(x, c)
     return c
+
+
+if __name__ == '__main__':
+    from timeit import default_timer as timer
+    import doctest
+    print("Running docstests .....")
+
+    t0 = timer()
+    result = doctest.testmod(
+        optionflags=(doctest.NORMALIZE_WHITESPACE
+                     | doctest.ELLIPSIS
+        )
+    )
+    dt = timer() - t0
+
+    print(
+        f"Attempted: {result.attempted}, "
+        f"Failed: {result.failed}, "
+        f"Elapsed: {dt:.3f}s"
+    )

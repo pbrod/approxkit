@@ -10,6 +10,14 @@ from approxkit.chebyshev import (
 )
 
 
+def test_check_domain_rejects_zero_width_interval():
+    with pytest.raises(
+        ValueError,
+        match="nonzero width",
+    ):
+        _check_domain([(1, 1)], 1)
+
+
 def test_check_domain_tuple_pairs():
     domain = _check_domain(
         [(0, 1), (2, 3)],
@@ -79,6 +87,27 @@ def test_chebfit_dct_rejects_wrong_callable_shape():
             lambda x, y: np.zeros((2, 2)),
             n=(5, 7),
         )
+
+
+def test_chebfit_dct_accepts_scalar_callable():
+    c = chebfit_dct(lambda x: 1.0, n=9)
+
+    expected = np.zeros(9)
+    expected[0] = 1.0
+
+    assert np.allclose(c, expected)
+
+
+def test_chebfit_dct_accepts_scalar_callable_2d():
+    c = chebfit_dct(
+        lambda x, y: 1.0,
+        n=(5, 7),
+    )
+
+    expected = np.zeros((5, 7))
+    expected[0, 0] = 1.0
+
+    assert np.allclose(c, expected)
 
 
 def test_chebfit_dct_basis_order_2d():
@@ -217,6 +246,22 @@ def test_chebfitnd_reconstructs_linear_function_3d():
         chebvalnd(c, X, Y, Z),
         f,
     )
+
+
+def test_chebvalnd_supports_broadcastable_coordinates():
+    c = np.zeros((2, 2))
+    c[0, 0] = 1.0  # constant
+    c[1, 0] = 2.0  # 2*T1(x)
+    c[0, 1] = 3.0  # 3*T1(y)
+
+    x = np.linspace(-1, 1, 5).reshape(5, 1)
+    y = np.linspace(-1, 1, 7).reshape(1, 7)
+
+    result = chebvalnd(c, x, y)
+    expected = 1.0 + 2.0 * x + 3.0 * y
+
+    assert result.shape == (5, 7)
+    assert np.allclose(result, expected)
 
 
 def test_chebvalnd_requires_at_least_one_coordinate():

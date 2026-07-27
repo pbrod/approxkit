@@ -6,7 +6,8 @@ from functools import reduce
 from typing import Any, Literal, Sequence, Self
 
 import numpy as np
-from numpy.polynomial.chebyshev import chebval  # chebpts1, chebpts2
+from numpy.polynomial import Chebyshev
+from numpy.polynomial.chebyshev import chebval, chebvander  # chebpts1, chebpts2
 from numpy.polynomial.polyutils import RankWarning
 from numpy.typing import ArrayLike, NDArray
 
@@ -131,7 +132,7 @@ def _check_domain(
     ndim: int,
 ) -> NDArray:
     """Validate and normalize domain intervals."""
-    domain = np.asarray(domain)
+    domain = np.asarray(domain, dtype=float)
     if domain.size % 2:
         raise ValueError(
             "domain must contain pairs (a, b)"
@@ -140,6 +141,10 @@ def _check_domain(
     if domain.shape[0] != ndim:
         raise ValueError(
             "domain must contain one interval per dimension"
+        )
+    if np.any(domain[:, 0] == domain[:, 1]):
+        raise ValueError(
+            "domain intervals must have nonzero width"
         )
     return domain
 
@@ -160,7 +165,7 @@ class ChebyshevND:
     --------
     >>> approx = ChebyshevND.fit_dct(np.exp, n=9, domain=[(0, 2)])
     >>> approx
-    ChebyshevND(degree=(8,), domain=[[0, 2]])
+    ChebyshevND(degree=(8,), domain=[[0.0, 2.0]])
 
     >>> x = np.linspace(0, 2, 5)
     >>> y = approx(x)
@@ -305,6 +310,22 @@ class ChebyshevND:
         return cls(coef)
 
 
+def chebfit1d(
+    x: ArrayLike,
+    y: ArrayLike,
+    deg: int,
+    domain: ArrayLike | None = None,
+) -> Chebyshev:
+    """Convenience wrapper around numpy.polynomial.Chebyshev.fit."""
+    return Chebyshev.fit(
+        x,
+        y,
+        deg,
+        domain=domain,
+    )
+
+
+
 def chebfit_dct(
     f: Callable[..., ArrayLike] | ArrayLike,
     n: int | Sequence[int] = (10,),
@@ -440,18 +461,20 @@ def chebfit_dct(
         xi = [map_to_interval(chebyshev_nodes(ni), d[0], d[1])
               for ni, d in zip(n, domain)]
         Xi = tuple(np.meshgrid(*xi, indexing=indexing))
-        ck = np.asarray(f(*(Xi + args))) / np.prod(n)
         expected_shape = Xi[0].shape
-
-        if ck.shape != expected_shape:
+        values = np.asarray(f(*(Xi + args)))
+        try:
+            ck = np.broadcast_to(values, expected_shape)
+        except ValueError as exc:
             raise ValueError(
                 f"expected function values with shape "
-                f"{expected_shape}, got {ck.shape}"
-            )
+                f"{expected_shape}, got {np.shape(values)}"
+            ) from exc
+
+        ck = ck / np.prod(n)
     else:
         n = np.shape(f)
         ck = np.asarray(f) / np.prod(n)
-
 
     ndim = len(n)
 
@@ -666,15 +689,15 @@ def chebvalnd(
     --------
     chebval, chebgridnd, chebfitnd
     """
-    try:
-        xi = np.asarray(xi)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("evaluation coordinates have incompatible shapes") from exc
+    xi = tuple(np.asarray(x) for x in xi)
+    # try:
+    # except (TypeError, ValueError) as exc:
+    #     raise ValueError("evaluation coordinates have incompatible shapes") from exc
     if len(xi) == 0:
         raise ValueError(
             "expected at least one coordinate"
         )
-    chebval = np.polynomial.chebyshev.chebval
+
     c = chebval(xi[0], c)
     for x in xi[1:]:
         c = chebval(x, c, tensor=False)
@@ -730,19 +753,19 @@ def chebvandernd(
     chebvander, chebvalnd, chebfitnd
     """
     def _check_deg(ideg, is_valid, ndim):
-        if np.any(is_valid != 1):
+        if not np.all(is_valid):
             raise ValueError("degrees must be non-negative integers")
         if len(ideg) != ndim:
             msg = 'length of deg must be the same as number of dimensions'
             raise ValueError(msg)
 
     ideg = [int(d) for d in deg]
-    is_valid = np.array([di == d and di >= 0 for di, d in zip(ideg, deg)])
+    is_valid = np.array([int(d) == d and d >= 0 for d in deg])
     ndim = len(xi)
     _check_deg(ideg, is_valid, ndim)
 
     xi = np.asarray(xi, dtype=float)
-    chebvander = np.polynomial.chebyshev.chebvander
+
     shape0 = xi[0].shape
     s0 = (1,) * ndim
     vxi = [chebvander(x, d).reshape(shape0 + s0[:i] + (-1,) + s0[i + 1::])
@@ -822,6 +845,113 @@ def chebgridnd(
         c = chebval(x, c)
     return c
 
+
+def select_degree_aic(
+    x: ArrayLike,
+    y: ArrayLike,
+    max_degree: int = 40,
+) -> int:
+    """
+    Return optimal degree for Chebyshev polynomial fitting
+
+    Notes
+    -----
+    This function finds the optimal degree for Chebyshev polynomial
+    fitting, according to the Akaike's information criterion.
+
+    Assuming that you want to find the degree N of a polynomial that fits
+    the data Y(X) best in a least-squares sense, the Akaike's information
+    criterion is defined by:
+        2*(N + 1) + n * (log(2 * pi * RSS / n) + 1)
+    where n is the number of points and RSS is the residual sum of squares.
+    The optimal degree N is defined here as that which minimizes AIC:
+    http://en.wikipedia.org/wiki/Akaike_Information_Criterion
+
+    If the number of data is small, it may tend to return:
+    N = (number of points)-1.
+
+    Examples
+    --------
+    >>> a, b = 0, 10
+    >>> x = np.linspace(a, b, 300)
+    >>> noise = 0.05 * np.random.randn(x.size)
+    >>> noise = 0.05 * np.sin(100*x)
+    >>> y = np.sin(x ** 3 / 100) ** 2 + noise
+    >>> n = select_degree_aic(x, y)
+    >>> n
+    21
+
+    >>> p = chebfit1d(x, y, n)
+    >>> ys = p(x)
+
+    >>> import matplotlib.pyplot as plt
+    >>> h0 = plt.plot(x, y, '.', label='data')
+    >>> h1 = plt.plot(x, ys, 'k', label=f'chebfit{n}')
+    >>> h2 = plt.legend()
+    >>> plt.close()
+
+    See also
+    --------
+    numpy.polynomial.Chebyshev
+    """
+
+    x = np.asarray(x).ravel()
+    y = np.asarray(y).ravel()
+
+    if x.size != y.size:
+        raise ValueError(
+            "x and y must have the same length"
+        )
+    if np.ptp(x) == 0:
+        raise ValueError(
+            "x values must not all be identical"
+        )
+
+    n = x.size
+
+    if n < 3:
+        raise ValueError(
+            "need at least 3 points"
+        )
+
+    max_degree = min(max_degree, n - 3)
+    if max_degree < 0:
+        raise ValueError(
+            "max_degree must be non-negative"
+        )
+
+    best_degree = 0
+    best_aic = np.inf
+    nit = 0
+
+    for degree in range(max_degree + 1):
+
+        p = Chebyshev.fit(
+            x,
+            y,
+            deg=degree,
+        )
+
+        rss = np.sum((y - p(x)) ** 2)
+        rss = max(rss, np.finfo(float).tiny)
+
+        k = degree + 1
+
+        aic = (
+            2 * k * (1 + (k + 1) / (n - k - 1))
+            + n * (np.log(2 * np.pi * rss / n) + 1)
+        )
+
+        if aic < best_aic:
+            best_aic = aic
+            best_degree = degree
+            nit = 0
+        else:
+            nit += 1
+            if nit >= 8:
+                break
+
+    return best_degree
 
 if __name__ == '__main__':
     from timeit import default_timer as timer

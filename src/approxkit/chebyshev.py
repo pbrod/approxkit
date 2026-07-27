@@ -7,39 +7,12 @@ from typing import Any, Literal, Sequence, Self
 
 import numpy as np
 from numpy.polynomial import Chebyshev
-from numpy.polynomial.chebyshev import chebval, chebvander  # chebpts1, chebpts2
+from numpy.polynomial.chebyshev import chebval, chebvander
 from numpy.polynomial.polyutils import RankWarning
 from numpy.typing import ArrayLike, NDArray
 
 from scipy.fft import dct
-
-
-def map_from_interval(
-    x: ArrayLike,
-    a: float,
-    b: float,
-) -> NDArray:
-    """F(x), where F: [a,b] -> [-1,1].
-
-    Examples
-    --------
-    >>> x = np.array([-1, 0, 1])
-    >>> np.allclose(
-    ...     map_from_interval(map_to_interval(x, 2, 4), 2, 4),
-    ...     x
-    ... )
-    True
-    """
-    return (x - (b + a) / 2.0) * (2.0 / (b - a))
-
-
-def map_to_interval(
-    x: ArrayLike,
-    a: float,
-    b: float,
-) -> NDArray:
-    """F(x), where F: [-1,1] -> [a,b]."""
-    return (x * (b - a) + (b + a)) / 2.0
+from approxkit.utils import map_from_interval, map_to_interval
 
 
 def chebyshev_lobatto_nodes(n: int) -> NDArray:
@@ -110,8 +83,8 @@ def chebyshev_nodes(n: int) -> NDArray:
     True
 
     Equals the Chebyshev points of the first kind.
-    >>> x1 = chebpts1(3)
-    >>> np.allclose(x, x1)
+    >>> y = chebpts1(3)
+    >>> np.allclose(x, y)
     True
 
     References
@@ -121,7 +94,7 @@ def chebyshev_nodes(n: int) -> NDArray:
     """
     if n <= 0:
         raise ValueError("n must be positive")
-    return - np.cos(np.pi * (np.arange(n) + 0.5) / n)
+    return -np.cos(np.pi * (np.arange(n) + 0.5) / n)
 
 
 chebroot = chebyshev_nodes  # alias
@@ -331,7 +304,7 @@ def chebfit_dct(
     n: int | Sequence[int] = (10,),
     domain: ArrayLike | None = None,
     args: tuple[Any, ...] = (),
-    indexing: Literal["ij", "xy"] = "ij"
+    indexing: Literal["ij", "xy"] = "ij",
 ) -> NDArray:
     """
     Fit Chebyshev series to N-dimensional function
@@ -356,8 +329,8 @@ def chebfit_dct(
         (default domain = [(-1, 1)] * len(n))
     args :
         additional arguments to pass to f.
-    indexing : {'xy', 'ij'}, optional
-        Cartesian ('xy') or matrix ('ij', default) indexing of output.
+    indexing : {"xy", "ij"}, optional
+        Cartesian ("xy") or matrix ("ij", default) indexing of output.
 
     Returns
     -------
@@ -421,12 +394,12 @@ def chebfit_dct(
     >>> xn = map_from_interval(x, *domain)
     >>> y = np.exp(x)
 
-    >>> h1 = plt.plot(x, y - chebvalnd(ck7, xn), 'g.', label='ck7')
-    >>> h2 = plt.plot(x, y - chebval(xn, ck9),'b.', label='ck9')
-    >>> h3 = plt.plot(x, y - chebval(xn, ck49),'r.', label='ck49')
-    >>> h4 = plt.plot(x, y - chebval(xn, ck49m),'m.', label='ck49m')
+    >>> h1 = plt.plot(x, y - chebvalnd(ck7, xn), "g.", label="ck7")
+    >>> h2 = plt.plot(x, y - chebval(xn, ck9),"b.", label="ck9")
+    >>> h3 = plt.plot(x, y - chebval(xn, ck49),"r.", label="ck49")
+    >>> h4 = plt.plot(x, y - chebval(xn, ck49m),"m.", label="ck49m")
     >>> h5 = plt.legend()
-    >>> h6 = plt.title('Errors for approximating np.exp')
+    >>> h6 = plt.title("Errors for approximating np.exp")
     >>> plt.close()
 
     See also
@@ -479,12 +452,26 @@ def chebfit_dct(
     ndim = len(n)
 
     for i in range(ndim):
-        ck = dct(ck[..., ::-1])
-        # Adjust the constant term for the Chebyshev/DCT-I normalization.
+        ck = dct(ck[..., ::-1], type=2)
+        # Adjust the constant term for the Chebyshev/DCT-II normalization.
         ck[..., 0] /= 2.0
         if i < ndim - 1 or indexing == "ij":
             ck = np.rollaxis(ck, axis=-1)
     return ck
+
+
+def _check_deg(
+    deg: Sequence[int],
+    ndim: int,
+) -> list[int]:
+    if len(deg) != ndim:
+        msg = "length of deg must be the same as number of dimensions"
+        raise ValueError(msg)
+    if not np.all([int(d) == d and d >= 0 for d in deg]):
+        raise ValueError(
+            "degrees must be non-negative integers"
+        )
+    return [int(d) for d in deg]
 
 
 def chebfitnd(
@@ -548,7 +535,7 @@ def chebfitnd(
         deficient. The warning is only raised if `full` = False.  The
         warnings can be turned off by
         >>> import warnings
-        >>> warnings.simplefilter('ignore', RankWarning)
+        >>> warnings.simplefilter("ignore", RankWarning)
 
     See Also
     --------
@@ -584,19 +571,20 @@ def chebfitnd(
     Examples
     --------
     """
-    def _check_shapes(z, xi):
+    def _check_shapes(z, xi) -> int:
         ndims = np.array([np.ndim(x) for x in xi])
         sizes = np.array([np.size(x) for x in xi])
         ndim = len(ndims)
         if np.any(ndims != ndim) or z.ndim != ndim:
             msg = f"expected {ndim}-dimensional arrays for all xi and f"
-            raise TypeError(msg)
+            raise ValueError(msg)
         if np.any(sizes == 0):
-            raise TypeError("expected non-empty vector for xi")
+            raise ValueError("expected non-empty vector for xi")
+        return ndim
 
     def _check_size(w, n):
         if n != len(w):
-            raise TypeError("expected x and w to have same length")
+            raise ValueError("expected x and w to have same length")
 
     def _scale(lhs):
         if issubclass(lhs.dtype.type, np.complexfloating):
@@ -618,11 +606,9 @@ def chebfitnd(
         scl = _scale(lhs)
         return lhs, rhs, scl
 
-    # xi = np.array(xi, copy=0) + 0.0
     z = np.array(f)
-    _check_shapes(z, xi)
-
-    degrees = np.asarray(deg, dtype=int)
+    ndim = _check_shapes(z, xi)
+    degrees = np.asarray(_check_deg(deg, ndim))
     orders = degrees + 1
     order = int(np.prod(orders))
 
@@ -690,9 +676,7 @@ def chebvalnd(
     chebval, chebgridnd, chebfitnd
     """
     xi = tuple(np.asarray(x) for x in xi)
-    # try:
-    # except (TypeError, ValueError) as exc:
-    #     raise ValueError("evaluation coordinates have incompatible shapes") from exc
+
     if len(xi) == 0:
         raise ValueError(
             "expected at least one coordinate"
@@ -752,21 +736,19 @@ def chebvandernd(
     --------
     chebvander, chebvalnd, chebfitnd
     """
-    def _check_deg(ideg, is_valid, ndim):
-        if not np.all(is_valid):
-            raise ValueError("degrees must be non-negative integers")
-        if len(ideg) != ndim:
-            msg = 'length of deg must be the same as number of dimensions'
-            raise ValueError(msg)
 
-    ideg = [int(d) for d in deg]
-    is_valid = np.array([int(d) == d and d >= 0 for d in deg])
     ndim = len(xi)
-    _check_deg(ideg, is_valid, ndim)
+    if ndim == 0:
+        raise ValueError("expected at least one coordinate")
+    ideg = _check_deg(deg, ndim)
 
-    xi = np.asarray(xi, dtype=float)
-
+    xi = tuple(np.asarray(x, dtype=float) for x in xi)
     shape0 = xi[0].shape
+    if not all(x.shape == shape0 for x in xi[1:]):
+        raise ValueError(
+            "all coordinate arrays must have the same shape"
+        )
+
     s0 = (1,) * ndim
     vxi = [chebvander(x, d).reshape(shape0 + s0[:i] + (-1,) + s0[i + 1::])
            for i, (d, x) in enumerate(zip(ideg, xi))]
@@ -885,8 +867,8 @@ def select_degree_aic(
     >>> ys = p(x)
 
     >>> import matplotlib.pyplot as plt
-    >>> h0 = plt.plot(x, y, '.', label='data')
-    >>> h1 = plt.plot(x, ys, 'k', label=f'chebfit{n}')
+    >>> h0 = plt.plot(x, y, ".", label="data")
+    >>> h1 = plt.plot(x, ys, "k", label=f"chebfit{n}")
     >>> h2 = plt.legend()
     >>> plt.close()
 
@@ -953,21 +935,7 @@ def select_degree_aic(
 
     return best_degree
 
-if __name__ == '__main__':
-    from timeit import default_timer as timer
-    import doctest
-    print("Running docstests .....")
 
-    t0 = timer()
-    result = doctest.testmod(
-        optionflags=(doctest.NORMALIZE_WHITESPACE
-                     | doctest.ELLIPSIS
-        )
-    )
-    dt = timer() - t0
-
-    print(
-        f"Attempted: {result.attempted}, "
-        f"Failed: {result.failed}, "
-        f"Elapsed: {dt:.3f}s"
-    )
+if __name__ == "__main__":
+    from approxkit.testing import test_docstrings
+    test_docstrings()

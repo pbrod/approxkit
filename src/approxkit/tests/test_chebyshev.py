@@ -1,12 +1,14 @@
 import pytest
 import numpy as np
+from numpy.polynomial.chebyshev import chebvander
 from approxkit.chebyshev import (
     _check_domain,
     chebvandernd,
     chebvalnd,
     chebyshev_nodes,
     chebfit_dct,
-    chebfitnd
+    chebfitnd,
+    ChebyshevND,
 )
 
 
@@ -33,7 +35,7 @@ def test_check_domain_tuple_pairs():
 def test_check_domain_rejects_odd_length_input():
     with pytest.raises(
         ValueError,
-        match=r"domain must contain pairs \(a, b\)",
+        match="domain must contain pairs",
     ):
         _check_domain([0, 1, 2], ndim=1)
 
@@ -110,6 +112,18 @@ def test_chebfit_dct_accepts_scalar_callable_2d():
     assert np.allclose(c, expected)
 
 
+def test_chebfit_dct_accepts_scalar_callable_3d():
+    c = chebfit_dct(
+        lambda x, y, z: 1.0,
+        n=(3, 4, 5),
+    )
+
+    expected = np.zeros((3, 4, 5))
+    expected[0, 0, 0] = 1.0
+
+    assert np.allclose(c, expected)
+
+
 def test_chebfit_dct_basis_order_2d():
     f = lambda x, y: x + 2 * y
 
@@ -172,6 +186,14 @@ def test_chebfit_dct_xy_vs_ij():
         chebvalnd(c_xy, Xxy, Yxy),
         f(Xxy, Yxy),
     )
+
+
+def test_chebfit_dct_warns_for_large_n():
+    with pytest.warns(
+        UserWarning,
+        match="n > 50",
+    ):
+        chebfit_dct(np.exp, n=51)
 
 
 def test_chebfitnd_basis_order_2d():
@@ -248,6 +270,17 @@ def test_chebfitnd_reconstructs_linear_function_3d():
     )
 
 
+def test_chebfitnd_rejects_non_integer_degree():
+    x = chebyshev_nodes(5)
+    X = x
+
+    with pytest.raises(
+        ValueError,
+        match="degrees must be non-negative integers",
+    ):
+        chebfitnd((X,), X, deg=[1.5])
+
+
 def test_chebvalnd_supports_broadcastable_coordinates():
     c = np.zeros((2, 2))
     c[0, 0] = 1.0  # constant
@@ -293,7 +326,7 @@ def test_chebvandernd_matches_chebvander():
     """Test 1D consistency with NumPy's chebvander"""
     x = np.linspace(-1, 1, 5)
 
-    v1 = np.polynomial.chebyshev.chebvander(x, 4)
+    v1 = chebvander(x, 4)
     v2 = chebvandernd([4], x)
 
     assert np.allclose(v1, v2)
@@ -324,7 +357,6 @@ def test_chebvandernd_meshgrid_matches_chebvalnd():
 
 
 def test_chebvandernd_preserves_input_shape():
-    """Test Nontrivial 2D shape"""
     rng = np.random.default_rng(1234)
     X = rng.uniform(-1, 1, (3, 4))
     Y = rng.uniform(-1, 1, (3, 4))
@@ -361,6 +393,24 @@ def test_chebvandernd_zero_degree():
     V = chebvandernd([0], x)
 
     assert np.allclose(V, np.ones((5, 1)))
+
+
+def test_chebvandernd_rejects_non_integer_degree():
+    x = np.linspace(-1, 1, 5)
+
+    with pytest.raises(
+        ValueError,
+        match="degrees must be non-negative integers",
+    ):
+        chebvandernd([1.5], x)
+
+
+def test_chebvandernd_requires_at_least_one_coordinate():
+    with pytest.raises(
+        ValueError,
+        match="at least one coordinate",
+    ):
+        chebvandernd([])
 
 
 def test_chebvandernd_rejects_negative_degree():
@@ -403,5 +453,35 @@ def test_chebvandernd_rejects_mismatched_shapes():
     x = np.zeros((3, 4))
     y = np.zeros((3, 5))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="same shape",
+    ):
         chebvandernd([2, 2], x, y)
+
+
+def test_chebyshevnd_domain_mapping():
+    approx = ChebyshevND.fit_dct(
+        np.exp,
+        n=9,
+        domain=[(0, 2)],
+    )
+
+    x = np.linspace(0, 2, 20)
+
+    assert np.allclose(
+        approx(x),
+        np.exp(x),
+        atol=1e-10,
+    )
+
+
+def test_chebyshevnd_rejects_zero_width_domain():
+    with pytest.raises(
+        ValueError,
+        match="nonzero width",
+    ):
+        ChebyshevND(
+            [1.0],
+            domain=[(1, 1)],
+        )

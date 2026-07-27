@@ -8,14 +8,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from mpmath import pade
 
-
-def map_to_interval(
-    x: ArrayLike,
-    a: float,
-    b: float,
-) -> NDArray:
-    """F(x), where F: [-1,1] -> [a,b]."""
-    return (x * (b - a) + (b + a)) / 2.0
+from approxkit.utils import map_to_interval
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +35,7 @@ class PadeApproximation:
     domain: tuple[float, float] | None = None
     max_error: float | None = None
 
-    def __call__(self, x: ArrayLike):
+    def __call__(self, x: ArrayLike) -> NDArray:
         return self.numerator(x) / self.denominator(x)
 
     @property
@@ -169,16 +162,6 @@ def padefit(
     return PadeApproximation(Polynomial(num), Polynomial(den))
 
 
-def test_padefit():
-    cof = np.array([1, 1, 1/2, 1/6, 1/24])
-    p = padefit(cof)
-
-    t = np.arange(0, 2, 0.1)
-
-    assert np.max(np.abs(p(t) - np.exp(t))) < 0.3
-
-
-
 def padefitlsq(
     fun,
     m: int,
@@ -269,10 +252,14 @@ def padefitlsq(
         # This equals the Chebyshev points of the first kind.
         return chebpts1(npt)
 
-    def _check_size(fs, npt):
+    def _check_size(fs, x, npt):
+        if len(fs) != len(x):
+            raise ValueError(
+                "x and function values must have the same length"
+            )
         if len(fs) < npt:
             warnings.warn(
-                f'Check the result! Number of function values should be at least: {npt:d}',
+                f'expected at least {npt} sample points',
                 stacklevel=2)
 
     def _init(fun, a, b, x, end_points, npt):
@@ -282,7 +269,7 @@ def padefitlsq(
             fs = fun(x)
         else:
             fs = fun
-            _check_size(fs, npt)
+        _check_size(fs, x, npt)
         return x, fs
 
     def _cond_plot1(trace, x, fs):
@@ -302,14 +289,14 @@ def padefitlsq(
     smallest_devmax = np.inf
     ncof = m + n + 1
     # Number of points where function is evaluated, i.e. fineness of mesh
-    npt = NFAC * ncof
+    npt_min = NFAC * ncof
 
-    x, fs = _init(fun, a, b, x, end_points, npt)
-
+    x, fs = _init(fun, a, b, x, end_points, npt_min)
+    npt = len(x)
     _cond_plot1(trace, x, fs)
 
-    wt = np.ones((npt))
-    ee = np.ones((npt))
+    wt = np.ones(npt)
+    ee = np.ones(npt)
     mad = 0
 
     u = np.zeros((npt, ncof))
@@ -359,20 +346,5 @@ def padefitlsq(
 
 
 if __name__ == '__main__':
-    from timeit import default_timer as timer
-    import doctest
-    print("Running docstests .....")
-
-    t0 = timer()
-    result = doctest.testmod(
-        optionflags=(doctest.NORMALIZE_WHITESPACE
-                     | doctest.ELLIPSIS
-        )
-    )
-    dt = timer() - t0
-
-    print(
-        f"Attempted: {result.attempted}, "
-        f"Failed: {result.failed}, "
-        f"Elapsed: {dt:.3f}s"
-    )
+    from approxkit.testing import test_docstrings
+    test_docstrings()

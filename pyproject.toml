@@ -1,0 +1,88 @@
+[build-system]
+requires = ["setuptools>=80", 
+            "wheel",
+            "setuptools-scm[simple]>=8",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "approxkit"
+dynamic = ["version"]
+description = "Approximation theory utilities for Chebyshev and Padé approximations"
+readme = "README.md"
+license = "BSD-3-Clause"
+requires-python = ">=3.10"
+
+authors = [
+    {name = "Per A. Brodtkorb"}
+]
+
+keywords = [
+    "chebyshev",
+    "pade",
+    "approximation",
+    "numerical-analysis",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "mpmath>=1.3",
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/pbrod/approxkit"
+Repository = "https://github.com/pbrod/approxkit"
+
+[tool.setuptools_scm]
+version_file = "src/approxkit/_version.py"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["tests/*.py"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "mpmath.*",
+    "scipy.*",
+    "matplotlib.*",
+]
+ignore_missing_imports = true

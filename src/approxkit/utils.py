@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+__all__ = ["map_from_interval", "map_to_interval"]
+
 
 def map_from_interval(
     x: ArrayLike,
@@ -23,8 +25,8 @@ def map_from_interval(
         raise ValueError(
             "interval endpoints must differ"
         )
-    x = np.asarray(x)
-    return (x - (b + a) / 2.0) * (2.0 / (b - a))
+    arr : NDArray[np.floating] = np.asarray(x, dtype=float)
+    return (arr - (b + a) / 2.0) * (2.0 / (b - a))
 
 
 def map_to_interval(
@@ -37,8 +39,8 @@ def map_to_interval(
         raise ValueError(
             "interval endpoints must differ"
         )
-    x = np.asarray(x)
-    return (x * (b - a) + (b + a)) / 2.0
+    arr : NDArray[np.floating] = np.asarray(x, dtype=float)
+    return (arr * (b - a) + (b + a)) / 2.0
 
 
 if __name__ == '__main__':

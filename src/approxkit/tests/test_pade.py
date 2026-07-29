@@ -1,3 +1,5 @@
+from dataclasses import FrozenInstanceError
+
 import pytest
 import numpy as np
 from numpy.polynomial import Polynomial
@@ -54,8 +56,8 @@ def test_padeapproximation_is_frozen():
         Polynomial([1]),
     )
 
-    with pytest.raises(Exception):
-        p.domain = (0, 1)
+    with pytest.raises(FrozenInstanceError):
+        p.domain = (0, 1)  # type: ignore[misc]
 
 
 def test_padefit_rejects_negative_n():

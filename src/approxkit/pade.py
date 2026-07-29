@@ -1,3 +1,4 @@
+from typing import cast, Callable
 import warnings
 from dataclasses import dataclass
 import numpy as np
@@ -9,6 +10,13 @@ from numpy.typing import ArrayLike, NDArray
 from mpmath import pade
 
 from approxkit.utils import map_to_interval
+__all__ = [
+    "PadeApproximation",
+    "padefit",
+    "padefitlsq",
+]
+
+FloatArray = NDArray[np.float64]
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,8 +43,23 @@ class PadeApproximation:
     domain: tuple[float, float] | None = None
     max_error: float | None = None
 
-    def __call__(self, x: ArrayLike) -> NDArray:
-        return self.numerator(x) / self.denominator(x)
+    def __call__(self, x: ArrayLike) -> FloatArray:
+        x_arr: FloatArray = np.asarray(x, dtype=float)
+        return cast(
+            FloatArray,
+            self.numerator(x_arr) / self.denominator(x_arr),
+        )
+
+    def __repr__(self) -> str:
+        attrs = [
+            f"m={self.numerator.degree()}",
+            f"n={self.denominator.degree()}",
+        ]
+        if self.domain is not None:
+            attrs.append(f"domain={self.domain}")
+        if self.max_error is not None:
+            attrs.append(f"max_error={self.max_error:.3e}")
+        return f"PadeApproximation({', '.join(attrs)})"
 
     @property
     def has_domain(self) -> bool:
@@ -47,24 +70,38 @@ class PadeApproximation:
         return self.max_error is not None
 
     @property
-    def num(self)-> Polynomial:
+    def num(self) -> Polynomial:
         """Alias for numerator."""
         return self.numerator
 
     @property
-    def den(self)-> Polynomial:
+    def den(self) -> Polynomial:
         """Alias for denominator."""
         return self.denominator
 
     @property
-    def poles(self)-> NDArray:
+    def poles(self) -> NDArray[np.complex128]:
         """Roots of the denominator polynomial (poles)."""
-        return self.denominator.roots()
+        return cast(
+            NDArray[np.complex128],
+            self.denominator.roots(),
+        )
 
     @property
-    def zeros(self)-> NDArray:
+    def zeros(self) -> NDArray[np.complex128]:
         """Roots of the numerator polynomial (zeros)."""
-        return self.numerator.roots()
+        return cast(
+            NDArray[np.complex128],
+            self.numerator.roots(),
+        )
+
+    @property
+    def degrees(self) -> tuple[int, int]:
+        """Return (numerator_degree, denominator_degree)."""
+        return (
+            self.numerator.degree(),
+            self.denominator.degree(),
+        )
 
 
 def padefit(
@@ -139,31 +176,31 @@ def padefit(
     scipy.interpolate.pade
 
     """
-    c = np.asarray(c)
+    coef: FloatArray = np.asarray(c, dtype=float)
     if m is None:
         # Use a near-diagonal Pade approximant.
         # If the total degree is odd, assign the extra degree
         # to the numerator.
-        m = (len(c) - 1) // 2 + 1
-    if not (0 <= m < len(c)):
-        raise ValueError(f"expected 0 <= m < {len(c)}")
+        m = (len(coef) - 1) // 2 + 1
+    if not (0 <= m < len(coef)):
+        raise ValueError(f"expected 0 <= m < {len(coef)}")
 
     if n is None:
-        n = len(c) - 1 - m
+        n = len(coef) - 1 - m
     elif n < 0:
         raise ValueError('n must be non-negative')
 
-    if m + n + 1 > len(c):
-        raise ValueError(f'require m + n + 1 <= {len(c)}')
+    if m + n + 1 > len(coef):
+        raise ValueError(f'require m + n + 1 <= {len(coef)}')
 
     # mpmath.pade expects (coefficients, numerator_degree,
     # denominator_degree).
-    num, den = pade(c, m, n)
+    num, den = pade(coef, m, n)
     return PadeApproximation(Polynomial(num), Polynomial(den))
 
 
 def padefitlsq(
-    fun,
+    fun: Callable[[ArrayLike], ArrayLike] | ArrayLike,
     m: int,
     n: int,
     a: float = -1,
@@ -238,7 +275,7 @@ def padefitlsq(
     William T. Wetterling and Brian P. Flannery (1997)
     "Numerical recipes in Fortran 77", Vol. 1, pp 197-20
     """
-    def _points(npt, end_points):
+    def _points(npt: int, end_points: bool) -> FloatArray:
         if end_points:
             # Use the location of the local extreme values of
             # the Chebychev polynomial of the first kind of degree NPT-1.
@@ -252,7 +289,7 @@ def padefitlsq(
         # This equals the Chebyshev points of the first kind.
         return chebpts1(npt)
 
-    def _check_size(fs, x, npt):
+    def _check_size(fs: FloatArray, x: FloatArray, npt: int) -> None:
         if len(fs) != len(x):
             raise ValueError(
                 "x and function values must have the same length"
@@ -262,31 +299,48 @@ def padefitlsq(
                 f'expected at least {npt} sample points',
                 stacklevel=2)
 
-    def _init(fun, a, b, x, end_points, npt):
+    def _init(
+        fun: Callable[[ArrayLike], ArrayLike] | ArrayLike,
+        a: float,
+        b: float,
+        x: ArrayLike | None,
+        end_points: bool,
+        npt: int
+    ) -> tuple[FloatArray, FloatArray]:
         if x is None:
-            x = map_to_interval(_points(npt, end_points), a, b)
-        if callable(fun):
-            fs = fun(x)
+            x_arr = map_to_interval(_points(npt, end_points), a, b)
         else:
-            fs = fun
-        _check_size(fs, x, npt)
-        return x, fs
+            x_arr = np.asarray(x, dtype=float)
 
-    def _cond_plot1(trace, x, fs):
+        fs_arr = (
+            np.asarray(fun(x_arr), dtype=float)
+            if callable(fun)
+            else np.asarray(fun, dtype=float)
+        )
+        _check_size(fs_arr, x_arr, npt)
+        return x_arr, fs_arr
+
+    def _cond_plot1(trace: bool, x: FloatArray, fs: FloatArray) -> None:
         if trace:
             import matplotlib.pyplot as plt
             plt.plot(x, fs, '+')
 
-    def _cond_plot2(x, fs, ys, ix, devmax):
+    def _cond_plot2(
+        x: FloatArray,
+        fs: FloatArray,
+        y_fit: FloatArray,
+        ix: int,
+        devmax: float,
+    ) -> None:
         if trace:
             import matplotlib.pyplot as plt
             print(f"Iteration={ix}, max error={devmax:g}")
-            plt.plot(x, fs, x, ys)
+            plt.plot(x, fs, x, y_fit)
 
     NFAC = 8
     MAXIT = 5
 
-    smallest_devmax = np.inf
+    smallest_devmax: float = np.inf
     ncof = m + n + 1
     # Number of points where function is evaluated, i.e. fineness of mesh
     npt_min = NFAC * ncof
@@ -295,11 +349,13 @@ def padefitlsq(
     npt = len(x)
     _cond_plot1(trace, x, fs)
 
-    wt = np.ones(npt)
-    ee = np.ones(npt)
-    mad = 0
+    wt: FloatArray = np.ones(npt, dtype=float)
+    ee: FloatArray = np.ones(npt, dtype=float)
+    mad: float = 0.0
+    u: FloatArray = np.zeros((npt, ncof), dtype=float)
+    best_num: Polynomial | None = None
+    best_den: Polynomial | None = None
 
-    u = np.zeros((npt, ncof))
     for ix in range(MAXIT):
         # Set up design matrix for least squares fit.
         pow1 = wt
@@ -314,35 +370,35 @@ def padefitlsq(
             pow1 = pow1 * x
             u[:, jx] = pow1
 
-        #[u1, w, v] = np.linalg.svd(u, full_matrices=False)
-        #cof = np.dot(np.where(w == 0, 0.0, np.dot(bb, u1) / w), v)
         cof, *_ = np.linalg.lstsq(u, bb, rcond=None)
 
         # Tabulate the deviations and revise the weights
         num = Polynomial(cof[: m + 1])
         den = Polynomial(np.r_[1.0, cof[m + 1 :]])
         ee = num(x) / den(x) - fs
-        # ee = polyval(cof[m::-1], x) / \
-        #     polyval(cof[ncof:m:-1].tolist() + [1, ], x) - fs
 
         wt = np.abs(ee)
-        devmax = np.max(wt)
+        devmax: float = np.max(wt)
         mad = wt.mean()  # mean absolute deviation
 
         # Save only the best coefficients found
         if devmax <= smallest_devmax:
             smallest_devmax = devmax
-            c1 = cof[: m + 1]
-            c2 = np.r_[1.0, cof[m + 1 :]]
+            best_num = num
+            best_den = den
+
 
         _cond_plot2(x, fs, ee + fs, ix, devmax)
+
+    assert best_num is not None
+    assert best_den is not None
+
     return PadeApproximation(
-        Polynomial(c1),
-        Polynomial(c2),
+        best_num,
+        best_den,
         domain=(a, b),
         max_error=smallest_devmax,
     )
-
 
 
 if __name__ == '__main__':

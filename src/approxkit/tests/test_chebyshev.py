@@ -1,4 +1,5 @@
 import pytest
+
 import numpy as np
 from numpy.polynomial.chebyshev import chebvander
 from approxkit.chebyshev import (
@@ -10,6 +11,7 @@ from approxkit.chebyshev import (
     chebfitnd,
     ChebyshevND,
 )
+from approxkit.utils import map_to_interval
 
 
 def test_check_domain_rejects_zero_width_interval():
@@ -125,7 +127,8 @@ def test_chebfit_dct_accepts_scalar_callable_3d():
 
 
 def test_chebfit_dct_basis_order_2d():
-    f = lambda x, y: x + 2 * y
+    def f(x, y):
+        return x + 2 * y
 
     c = chebfit_dct(f, n=(9, 9))
 
@@ -137,9 +140,11 @@ def test_chebfit_dct_basis_order_2d():
 
 
 def test_chebfit_dct_basis_order_3d():
-    f = lambda x, y, z: x + 2 * y + 3 * z
 
-    c = chebfit_dct(f, n=(9, 9, 9))
+    c = chebfit_dct(
+        lambda x, y, z: x + 2 * y + 3 * z,
+         n=(9, 9, 9),
+    )
 
     expected = np.zeros_like(c)
     expected[1, 0, 0] = 1.0
@@ -150,7 +155,8 @@ def test_chebfit_dct_basis_order_3d():
 
 
 def test_chebfit_dct_reconstructs_linear_function():
-    f = lambda x, y: x + 2 * y
+    def f(x, y):
+        return x + 2 * y
 
     c = chebfit_dct(f, n=(9, 9))
 
@@ -166,7 +172,8 @@ def test_chebfit_dct_reconstructs_linear_function():
 
 
 def test_chebfit_dct_xy_vs_ij():
-    f = lambda x, y: x + 2 * y
+    def f(x, y):
+        return x + 2 * y
 
     x = chebyshev_nodes(9)
     y = chebyshev_nodes(9)
@@ -278,7 +285,7 @@ def test_chebfitnd_rejects_non_integer_degree():
         ValueError,
         match="degrees must be non-negative integers",
     ):
-        chebfitnd((X,), X, deg=[1.5])
+        chebfitnd((X,), X, deg=[1.5])  # type: ignore[list-item]
 
 
 def test_chebvalnd_supports_broadcastable_coordinates():
@@ -402,7 +409,7 @@ def test_chebvandernd_rejects_non_integer_degree():
         ValueError,
         match="degrees must be non-negative integers",
     ):
-        chebvandernd([1.5], x)
+        chebvandernd([1.5], x)  # type: ignore[list-item]
 
 
 def test_chebvandernd_requires_at_least_one_coordinate():
@@ -485,3 +492,41 @@ def test_chebyshevnd_rejects_zero_width_domain():
             [1.0],
             domain=[(1, 1)],
         )
+
+
+def test_chebyshevnd_fit_preserves_domain():
+    x = np.linspace(0, 2, 50)
+    y = np.exp(x)
+
+    approx = ChebyshevND.fit(
+        (x,),
+        y,
+        deg=[8],
+        domain=[(0, 2)],
+    )
+    assert approx.domain is not None
+    assert np.array_equal(
+        approx.domain,
+        np.array([[0, 2]])
+    )
+
+
+def test_chebyshevnd_fit_domain_used_for_evaluation():
+
+    xp = map_to_interval(chebyshev_nodes(9), 0, 2)
+    y = np.exp(xp)
+
+    approx = ChebyshevND.fit(
+        (xp,),
+        y,
+        deg=[8],
+        domain=[(0, 2)],
+    )
+
+    t = np.linspace(0, 2, 20)
+
+    assert np.allclose(
+        approx(t),
+        np.exp(t),
+        atol=1e-6,
+    )

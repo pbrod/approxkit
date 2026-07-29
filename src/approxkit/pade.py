@@ -10,6 +10,7 @@ from numpy.typing import ArrayLike, NDArray
 from mpmath import pade
 
 from approxkit.utils import map_to_interval
+
 __all__ = [
     "PadeApproximation",
     "padefit",
@@ -38,6 +39,7 @@ class PadeApproximation:
     max_error : float | None
         Maximum absolute fitting error.
     """
+
     numerator: Polynomial
     denominator: Polynomial
     domain: tuple[float, float] | None = None
@@ -188,10 +190,10 @@ def padefit(
     if n is None:
         n = len(coef) - 1 - m
     elif n < 0:
-        raise ValueError('n must be non-negative')
+        raise ValueError("n must be non-negative")
 
     if m + n + 1 > len(coef):
-        raise ValueError(f'require m + n + 1 <= {len(coef)}')
+        raise ValueError(f"require m + n + 1 <= {len(coef)}")
 
     # mpmath.pade expects (coefficients, numerator_degree,
     # denominator_degree).
@@ -275,6 +277,7 @@ def padefitlsq(
     William T. Wetterling and Brian P. Flannery (1997)
     "Numerical recipes in Fortran 77", Vol. 1, pp 197-20
     """
+
     def _points(npt: int, end_points: bool) -> FloatArray:
         if end_points:
             # Use the location of the local extreme values of
@@ -291,13 +294,9 @@ def padefitlsq(
 
     def _check_size(fs: FloatArray, x: FloatArray, npt: int) -> None:
         if len(fs) != len(x):
-            raise ValueError(
-                "x and function values must have the same length"
-            )
+            raise ValueError("x and function values must have the same length")
         if len(fs) < npt:
-            warnings.warn(
-                f'expected at least {npt} sample points',
-                stacklevel=2)
+            warnings.warn(f"expected at least {npt} sample points", stacklevel=2)
 
     def _init(
         fun: Callable[[ArrayLike], ArrayLike] | ArrayLike,
@@ -305,7 +304,7 @@ def padefitlsq(
         b: float,
         x: ArrayLike | None,
         end_points: bool,
-        npt: int
+        npt: int,
     ) -> tuple[FloatArray, FloatArray]:
         if x is None:
             x_arr = map_to_interval(_points(npt, end_points), a, b)
@@ -323,7 +322,8 @@ def padefitlsq(
     def _cond_plot1(trace: bool, x: FloatArray, fs: FloatArray) -> None:
         if trace:
             import matplotlib.pyplot as plt
-            plt.plot(x, fs, '+')
+
+            plt.plot(x, fs, "+")
 
     def _cond_plot2(
         x: FloatArray,
@@ -334,6 +334,7 @@ def padefitlsq(
     ) -> None:
         if trace:
             import matplotlib.pyplot as plt
+
             print(f"Iteration={ix}, max error={devmax:g}")
             plt.plot(x, fs, x, y_fit)
 
@@ -387,7 +388,6 @@ def padefitlsq(
             best_num = num
             best_den = den
 
-
         _cond_plot2(x, fs, ee + fs, ix, devmax)
 
     assert best_num is not None
@@ -401,6 +401,7 @@ def padefitlsq(
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from approxkit.testing import test_docstrings
+
     test_docstrings()

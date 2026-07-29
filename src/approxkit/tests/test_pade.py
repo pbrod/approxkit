@@ -19,6 +19,7 @@ def test_padeapproximation_properties():
     assert p.num is p.numerator
     assert p.den is p.denominator
 
+
 def test_padeapproximation_default_metadata():
     p = PadeApproximation(
         Polynomial([1]),
@@ -43,7 +44,7 @@ def test_padeapproximation_call():
 def test_padeapproximation_poles_and_zeros():
     p = PadeApproximation(
         Polynomial([-1, 1]),  # x - 1
-        Polynomial([2, 1]),   # x + 2
+        Polynomial([2, 1]),  # x + 2
     )
 
     assert np.allclose(p.zeros, [1])
@@ -66,7 +67,7 @@ def test_padefit_rejects_negative_n():
 
 
 def test_padefit():
-    cof = np.array([1, 1, 1/2, 1/6, 1/24])
+    cof = np.array([1, 1, 1 / 2, 1 / 6, 1 / 24])
     p = padefit(cof)
 
     t = np.arange(0, 2, 0.1)
@@ -85,12 +86,11 @@ def test_padefit_requires_enough_coefficients():
 
 
 def test_padefit_default_degrees():
-    p = padefit([1, 1, 0.5, 1/6, 1/24])
+    p = padefit([1, 1, 0.5, 1 / 6, 1 / 24])
 
     assert isinstance(p, PadeApproximation)
     assert p.num.degree() == 3
     assert p.den.degree() == 1
-
 
 
 def test_padefit_exact_rational_function():

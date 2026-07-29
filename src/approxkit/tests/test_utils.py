@@ -13,8 +13,8 @@ def test_map_from_interval_rejects_zero_width():
 
 def test_map_to_interval_rejects_zero_width():
     with pytest.raises(
-            ValueError,
-            match="interval endpoints must differ",
+        ValueError,
+        match="interval endpoints must differ",
     ):
         map_to_interval([0], 1, 1)
 

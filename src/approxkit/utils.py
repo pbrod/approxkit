@@ -22,10 +22,8 @@ def map_from_interval(
     True
     """
     if a == b:
-        raise ValueError(
-            "interval endpoints must differ"
-        )
-    arr : NDArray[np.floating] = np.asarray(x, dtype=float)
+        raise ValueError("interval endpoints must differ")
+    arr: NDArray[np.floating] = np.asarray(x, dtype=float)
     return (arr - (b + a) / 2.0) * (2.0 / (b - a))
 
 
@@ -36,13 +34,12 @@ def map_to_interval(
 ) -> NDArray:
     """Map values from [-1, 1] to [a, b]."""
     if a == b:
-        raise ValueError(
-            "interval endpoints must differ"
-        )
-    arr : NDArray[np.floating] = np.asarray(x, dtype=float)
+        raise ValueError("interval endpoints must differ")
+    arr: NDArray[np.floating] = np.asarray(x, dtype=float)
     return (arr * (b - a) + (b + a)) / 2.0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from approxkit.testing import test_docstrings
+
     test_docstrings()

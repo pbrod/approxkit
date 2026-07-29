@@ -133,18 +133,12 @@ def _check_domain(
     """Validate and normalize domain intervals."""
     dom: FloatArray = np.asarray(domain, dtype=float)
     if dom.size % 2:
-        raise ValueError(
-            "domain must contain pairs (a, b)"
-        )
+        raise ValueError("domain must contain pairs (a, b)")
     dom = dom.reshape((-1, 2))
     if dom.shape[0] != ndim:
-        raise ValueError(
-            "domain must contain one interval per dimension"
-        )
+        raise ValueError("domain must contain one interval per dimension")
     if np.any(dom[:, 0] == dom[:, 1]):
-        raise ValueError(
-            "domain intervals must have nonzero width"
-        )
+        raise ValueError("domain intervals must have nonzero width")
     return dom
 
 
@@ -198,6 +192,7 @@ class ChebyshevND:
     >>> np.allclose(approx(1.5), np.exp(1.5), atol=1e-2)
     True
     """
+
     coef: ArrayLike
     domain: ArrayLike | None = None
 
@@ -208,10 +203,7 @@ class ChebyshevND:
         self._coef: FloatArray = np.asarray(self.coef, dtype=float)
 
         if self.domain is not None:
-            self._domain: FloatArray = _check_domain(
-                self.domain,
-                self._coef.ndim
-            )
+            self._domain: FloatArray = _check_domain(self.domain, self._coef.ndim)
         else:
             self._domain = None
 
@@ -233,16 +225,11 @@ class ChebyshevND:
         *xi: ArrayLike,
     ) -> tuple[FloatArray, ...]:
         if len(xi) != self.ndim:
-            raise ValueError(
-                f"expected {self.ndim} coordinates, got {len(xi)}"
-            )
+            raise ValueError(f"expected {self.ndim} coordinates, got {len(xi)}")
         if self._domain is None:
             return tuple(np.asarray(x, dtype=float) for x in xi)
 
-        return tuple(
-            map_from_interval(x, d[0], d[1])
-            for x, d in zip(xi, self._domain)
-        )
+        return tuple(map_from_interval(x, d[0], d[1]) for x, d in zip(xi, self._domain))
 
     def eval_normalized(self, *xi: ArrayLike) -> FloatArray:
         return chebvalnd(self._coef, *xi)
@@ -277,13 +264,9 @@ class ChebyshevND:
         Return lower-order approximation.
         """
         if len(degrees) != self.ndim:
-            raise ValueError(
-                f"expected {self.ndim} degrees, got {len(degrees)}"
-            )
+            raise ValueError(f"expected {self.ndim} degrees, got {len(degrees)}")
         if any(d < 0 for d in degrees):
-            raise ValueError(
-                "degrees must be non-negative"
-            )
+            raise ValueError("degrees must be non-negative")
         slices = tuple(slice(0, d + 1) for d in degrees)
         return type(self)(
             self._coef[slices],
@@ -480,8 +463,10 @@ def chebfit_dct(
         if domain is None:
             domain = [(-1, 1)] * len(nodes)
         domain = _check_domain(domain, len(nodes))
-        xi = [map_to_interval(chebyshev_nodes(ni), d[0], d[1])
-              for ni, d in zip(nodes, domain)]
+        xi = [
+            map_to_interval(chebyshev_nodes(ni), d[0], d[1])
+            for ni, d in zip(nodes, domain)
+        ]
         Xi = tuple(np.meshgrid(*xi, indexing=indexing))
         expected_shape = Xi[0].shape
         values = np.asarray(f(*(Xi + args)), dtype=float)
@@ -499,10 +484,7 @@ def chebfit_dct(
     ck: FloatArray = np.asarray(values, dtype=float) / np.prod(nodes)
 
     if np.any(nodes > 50):
-        warnings.warn(
-            "n > 50 may lead to noisy high-order coefficients",
-            stacklevel=2
-        )
+        warnings.warn("n > 50 may lead to noisy high-order coefficients", stacklevel=2)
     ndim = len(nodes)
 
     for i in range(ndim):
@@ -625,10 +607,8 @@ def chebfitnd(
     Examples
     --------
     """
-    def _check_shapes(
-        z: NDArray[Any],
-        xi: tuple[ArrayLike, ...]
-    ) -> int:
+
+    def _check_shapes(z: NDArray[Any], xi: tuple[ArrayLike, ...]) -> int:
         ndims = np.asarray([np.ndim(x) for x in xi])
         sizes = np.asarray([np.size(x) for x in xi])
         ndim = len(ndims)
@@ -645,8 +625,7 @@ def chebfitnd(
 
     def _scale(lhs: NDArray[Any]) -> FloatArray:
         if issubclass(lhs.dtype.type, np.complexfloating):
-            scl = np.sqrt((np.square(lhs.real) +
-                           np.square(lhs.imag)).sum(axis=0))
+            scl = np.sqrt((np.square(lhs.real) + np.square(lhs.imag)).sum(axis=0))
         else:
             scl = np.sqrt(np.square(lhs).sum(axis=0))
         scl[scl == 0] = 1
@@ -746,9 +725,7 @@ def chebvalnd(
     x_i = tuple(np.asarray(x, dtype=float) for x in xi)
 
     if len(x_i) == 0:
-        raise ValueError(
-            "expected at least one coordinate"
-        )
+        raise ValueError("expected at least one coordinate")
     out: FloatArray = np.asarray(c, dtype=float)
     out = chebval(x_i[0], out)
     for x in x_i[1:]:
@@ -813,19 +790,16 @@ def chebvandernd(
     x_i: tuple[FloatArray, ...] = tuple(np.asarray(x, dtype=float) for x in xi)
     shape0 = x_i[0].shape
     if not all(x.shape == shape0 for x in x_i[1:]):
-        raise ValueError(
-            "all coordinate arrays must have the same shape"
-        )
+        raise ValueError("all coordinate arrays must have the same shape")
 
     s0 = (1,) * ndim
-    vxi = [chebvander(x, d).reshape(shape0 + s0[:i] + (-1,) + s0[i + 1::])
-           for i, (d, x) in enumerate(zip(ideg, x_i))]
+    vxi = [
+        chebvander(x, d).reshape(shape0 + s0[:i] + (-1,) + s0[i + 1 : :])
+        for i, (d, x) in enumerate(zip(ideg, x_i))
+    ]
 
     v = reduce(np.multiply, vxi)
-    return cast(
-        FloatArray,
-        v.reshape(v.shape[:-ndim] + (-1,))
-    )
+    return cast(FloatArray, v.reshape(v.shape[:-ndim] + (-1,)))
 
 
 def chebgridnd(
@@ -953,33 +927,24 @@ def select_degree_aic(
     y_arr: FloatArray = np.asarray(y, dtype=float).ravel()
 
     if x_arr.size != y_arr.size:
-        raise ValueError(
-            "x and y must have the same length"
-        )
+        raise ValueError("x and y must have the same length")
     if np.ptp(x_arr) == 0:
-        raise ValueError(
-            "x values must not all be identical"
-        )
+        raise ValueError("x values must not all be identical")
 
     n = x_arr.size
 
     if n < 3:
-        raise ValueError(
-            "need at least 3 points"
-        )
+        raise ValueError("need at least 3 points")
 
     max_degree = min(max_degree, n - 3)
     if max_degree < 0:
-        raise ValueError(
-            "max_degree must be non-negative"
-        )
+        raise ValueError("max_degree must be non-negative")
 
     best_degree: int = 0
     best_aic: float = np.inf
     nit: int = 0
 
     for degree in range(max_degree + 1):
-
         p = Chebyshev.fit(
             x_arr,
             y_arr,
@@ -991,9 +956,8 @@ def select_degree_aic(
 
         k = degree + 1
 
-        aic = (
-            2 * k * (1 + (k + 1) / (n - k - 1))
-            + n * (np.log(2 * np.pi * rss / n) + 1)
+        aic = 2 * k * (1 + (k + 1) / (n - k - 1)) + n * (
+            np.log(2 * np.pi * rss / n) + 1
         )
 
         if aic < best_aic:
@@ -1010,4 +974,5 @@ def select_degree_aic(
 
 if __name__ == "__main__":
     from approxkit.testing import test_docstrings
+
     test_docstrings()

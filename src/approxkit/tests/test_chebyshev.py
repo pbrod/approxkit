@@ -28,10 +28,7 @@ def test_check_domain_tuple_pairs():
         ndim=2,
     )
 
-    assert np.array_equal(
-        domain,
-        np.array([[0, 1], [2, 3]])
-    )
+    assert np.array_equal(domain, np.array([[0, 1], [2, 3]]))
 
 
 def test_check_domain_rejects_odd_length_input():
@@ -53,10 +50,12 @@ def test_check_domain_requires_one_interval_per_dimension():
 def test_check_domain_normalizes_shape():
     domain = _check_domain([0, 1, 2, 3], ndim=2)
 
-    expected = np.array([
-        [0, 1],
-        [2, 3],
-    ])
+    expected = np.array(
+        [
+            [0, 1],
+            [2, 3],
+        ]
+    )
 
     assert np.array_equal(domain, expected)
 
@@ -70,11 +69,7 @@ def test_chebyshev_nodes_invalid_degree():
 
 
 def test_chebfit_dct_non_square_grid():
-    c = chebfit_dct(
-        lambda x, y: x + y,
-        n=(3, 5),
-        indexing="xy"
-    )
+    c = chebfit_dct(lambda x, y: x + y, n=(3, 5), indexing="xy")
     expected = np.zeros((3, 5))
     expected[0, 1] = 1.0
     expected[1, 0] = 1.0
@@ -143,7 +138,7 @@ def test_chebfit_dct_basis_order_3d():
 
     c = chebfit_dct(
         lambda x, y, z: x + 2 * y + 3 * z,
-         n=(9, 9, 9),
+        n=(9, 9, 9),
     )
 
     expected = np.zeros_like(c)
@@ -263,7 +258,9 @@ def test_chebfitnd_reconstructs_linear_function_3d():
     z = chebyshev_nodes(7)
 
     X, Y, Z = np.meshgrid(
-        x, y, z,
+        x,
+        y,
+        z,
         indexing="ij",
     )
 
@@ -505,10 +502,7 @@ def test_chebyshevnd_fit_preserves_domain():
         domain=[(0, 2)],
     )
     assert approx.domain is not None
-    assert np.array_equal(
-        approx.domain,
-        np.array([[0, 2]])
-    )
+    assert np.array_equal(approx.domain, np.array([[0, 2]]))
 
 
 def test_chebyshevnd_fit_domain_used_for_evaluation():

@@ -11,6 +11,7 @@ dynamic = ["version"]
 description = "Approximation theory utilities for Chebyshev and Padé approximations"
 readme = "README.md"
 license = "BSD-3-Clause"
+license-files = ["LICEN[CS]E.*"]
 requires-python = ">=3.11"
 
 authors = [

@@ -89,3 +89,6 @@ module = [
     "matplotlib.*",
 ]
 ignore_missing_imports = true
+
+[tool.ruff.lint.per-file-ignores]
+"src/approxkit/_version.py" = ["RUF022"]

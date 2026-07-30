@@ -53,10 +53,10 @@ def chebyshev_lobatto_nodes(n: int) -> FloatArray:
 
     Notes
     ------
-    These nodes are the roots of T'_n, which correspond to the extrema of T_n.
-    Because the extrema of Chebyshev polynomials of the first
-    kind (T_n) occur at ±1, these points are often used as initial
-    nodes in minimax approximation algorithms.
+    These nodes are the roots of T'_n and therefore correspond to the
+    extrema of T_n. Because the extrema of Chebyshev polynomials of the
+    first kind occur at ±1, they are often used as initial nodes in
+    minimax approximation algorithms.
 
     Examples
     --------

@@ -734,6 +734,8 @@ def test_chebyshevnd_copy():
     copied = approx.copy()
 
     assert copied is not approx
+    assert copied._domain is not None
+    assert approx._domain is not None
     assert np.allclose(copied._coef, approx._coef)
     assert np.allclose(copied._domain, approx._domain)
 
@@ -792,6 +794,8 @@ def test_chebyshevnd_truncate():
         coef[:2, :3],
     )
 
+    assert truncated._domain is not None
+    assert approx._domain is not None
     assert np.allclose(
         truncated._domain,
         approx._domain,

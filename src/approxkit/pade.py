@@ -1,13 +1,13 @@
-from typing import cast, Callable
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
-import numpy as np
+from typing import cast
 
+import numpy as np
+from mpmath import pade
 from numpy.polynomial import Polynomial
 from numpy.polynomial.chebyshev import chebpts1, chebpts2
 from numpy.typing import ArrayLike, NDArray
-
-from mpmath import pade
 
 from approxkit.utils import map_to_interval
 

@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from approxkit.utils import map_from_interval, map_to_interval
 
 

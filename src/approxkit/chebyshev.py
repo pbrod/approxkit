@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from functools import reduce
-from typing import Any, Literal, Sequence, Self, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 
 import numpy as np
 from numpy.polynomial import Chebyshev
@@ -19,20 +20,21 @@ else:
         from numpy.polynomial.polyutils import RankWarning
 
 from scipy.fft import dct
+
 from approxkit.utils import map_from_interval, map_to_interval
 
 __all__ = [
-    "chebyshev_lobatto_nodes",
-    "chebextr",
-    "chebyshev_nodes",
-    "chebroot",
     "ChebyshevND",
+    "chebextr",
     "chebfit1d",
     "chebfit_dct",
     "chebfitnd",
+    "chebgridnd",
+    "chebroot",
     "chebvalnd",
     "chebvandernd",
-    "chebgridnd",
+    "chebyshev_lobatto_nodes",
+    "chebyshev_nodes",
     "select_degree_aic",
 ]
 

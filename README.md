@@ -141,7 +141,11 @@ ApproxKit generalizes evaluation to arbitrary dimensions:
 ```python
 values = chebvalnd(
     coef,
-    x1, x2, x3, x4, x5,
+    x1,
+    x2,
+    x3,
+    x4,
+    x5,
 )
 ```
 
@@ -160,7 +164,11 @@ ApproxKit generalizes Vandermonde matrix construction to arbitrary dimensions:
 ```python
 V = chebvandernd(
     [4, 4, 4, 4, 4],
-    x1, x2, x3, x4, x5,
+    x1,
+    x2,
+    x3,
+    x4,
+    x5,
 )
 ```
 
@@ -273,7 +281,7 @@ where \(P(x)\) and \(Q(x)\) are polynomials.
 ```python
 from approxkit import padefit
 
-coeffs = [1, 1, 1/2, 1/6, 1/24]
+coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]
 
 p = padefit(coeffs)
 
@@ -411,7 +419,7 @@ You know the Taylor-series coefficients of a function.
 ### Example
 
 ```python
-coeffs = [1, 1, 1/2, 1/6, 1/24]
+coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]
 
 p = padefit(coeffs)
 ```
@@ -518,7 +526,7 @@ coef = chebfitnd(
 ```python
 from approxkit import padefit
 
-coeffs = [1, 1, 1/2, 1/6, 1/24]
+coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]
 
 p = padefit(coeffs)
 

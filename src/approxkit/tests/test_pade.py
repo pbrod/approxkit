@@ -1,8 +1,9 @@
 from dataclasses import FrozenInstanceError
 
-import pytest
 import numpy as np
+import pytest
 from numpy.polynomial import Polynomial
+
 from approxkit.pade import PadeApproximation, padefit, padefitlsq
 
 

@@ -1,48 +1,48 @@
-from typing import Any, Optional
+from typing import Any
 
+from ._version import version as __version__
 from .chebyshev import (
-    chebyshev_lobatto_nodes,
-    chebextr,
-    chebyshev_nodes,
-    chebroot,
     ChebyshevND,
+    chebextr,
     chebfit1d,
     chebfit_dct,
     chebfitnd,
+    chebgridnd,
+    chebroot,
     chebvalnd,
     chebvandernd,
-    chebgridnd,
+    chebyshev_lobatto_nodes,
+    chebyshev_nodes,
     select_degree_aic,
 )
-from .pade import padefit, padefitlsq, PadeApproximation
+from .pade import PadeApproximation, padefit, padefitlsq
 from .utils import map_from_interval, map_to_interval
-from ._version import version as __version__
 
 _PACKAGE_NAME = __name__
 __all__ = [
     "ChebyshevND",
     "PadeApproximation",
-    "chebyshev_lobatto_nodes",
+    "__version__",
     "chebextr",
-    "chebyshev_nodes",
-    "chebroot",
     "chebfit1d",
     "chebfit_dct",
     "chebfitnd",
+    "chebgridnd",
+    "chebroot",
     "chebvalnd",
     "chebvandernd",
-    "chebgridnd",
+    "chebyshev_lobatto_nodes",
+    "chebyshev_nodes",
+    "map_from_interval",
+    "map_to_interval",
     "padefit",
     "padefitlsq",
-    "map_from_interval",
     "select_degree_aic",
-    "map_to_interval",
     "test",
-    "__version__",
 ]
 
 
-def test(*options: str, plugins: Optional[Any] = None) -> int:
+def test(*options: str, plugins: Any | None = None) -> int:
     """
     Run tests for module using pytest.
 

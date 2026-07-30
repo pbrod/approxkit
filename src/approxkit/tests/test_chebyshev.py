@@ -1,15 +1,15 @@
-import pytest
-
 import numpy as np
+import pytest
 from numpy.polynomial.chebyshev import chebvander
+
 from approxkit.chebyshev import (
+    ChebyshevND,
     _check_domain,
-    chebvandernd,
-    chebvalnd,
-    chebyshev_nodes,
     chebfit_dct,
     chebfitnd,
-    ChebyshevND,
+    chebvalnd,
+    chebvandernd,
+    chebyshev_nodes,
 )
 from approxkit.utils import map_to_interval
 

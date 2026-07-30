@@ -33,13 +33,15 @@ dependencies = [
 
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 
@@ -48,14 +50,13 @@ test = [
     "pytest>=8",
 ]
 dev = [
-    "pytest",
-    "pytest-cov",
-    "ruff",
-    "mypy",
-    "build",
-    "twine",
+    "pytest>=8",
+    "pytest-cov>=6",
+    "ruff>=0.16",
+    "mypy>=1.10",
+    "build>=1.2",
+    "twine>=6",
 ]
-
 [project.urls]
 Homepage = "https://github.com/pbrod/approxkit"
 Repository = "https://github.com/pbrod/approxkit"
@@ -65,12 +66,12 @@ version_file = "src/approxkit/_version.py"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-license-files = ["LICENSE.txt"]
 
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Include package tests so PACKAGE.test() works after installation.
 [tool.setuptools.package-data]
 "*" = ["tests/*.py"]
 

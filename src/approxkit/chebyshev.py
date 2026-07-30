@@ -44,8 +44,7 @@ IntArray = NDArray[np.int_]
 
 def chebyshev_lobatto_nodes(n: int) -> FloatArray:
     """
-    Return Chebyshev-Lobatto nodes (roots of the derivative of the
-    Chebyshev polynomial of the first kind).
+    Return Chebyshev-Lobatto nodes at the extrema of T_n.
 
     Parameters
     ----------
@@ -54,8 +53,9 @@ def chebyshev_lobatto_nodes(n: int) -> FloatArray:
 
     Notes
     ------
+    These nodes are the roots of T'_n, which correspond to the extrema of T_n.
     Because the extrema of Chebyshev polynomials of the first
-    kind occur at ±1, these points are often used as initial
+    kind (T_n) occur at ±1, these points are often used as initial
     nodes in minimax approximation algorithms.
 
     Examples
@@ -202,10 +202,10 @@ class ChebyshevND:
     _domain: FloatArray | None = field(init=False)
 
     def __post_init__(self) -> None:
-        self._coef: FloatArray = np.asarray(self.coef, dtype=float)
+        self._coef = np.asarray(self.coef, dtype=float)
 
         if self.domain is not None:
-            self._domain: FloatArray = _check_domain(self.domain, self._coef.ndim)
+            self._domain = _check_domain(self.domain, self._coef.ndim)
         else:
             self._domain = None
 
@@ -308,6 +308,7 @@ class ChebyshevND:
         domain: ArrayLike | None = None,
         **kwargs: Any,
     ) -> Self:
+        dom = None
         if domain is not None:
             dom = _check_domain(domain, len(xi))
             xi = tuple(map_from_interval(x, d[0], d[1]) for x, d in zip(xi, dom))
@@ -317,7 +318,7 @@ class ChebyshevND:
             deg,
             **kwargs,
         )
-        return cls(coef, dom if domain is not None else None)
+        return cls(coef, dom)
 
 
 def chebfit1d(
@@ -646,7 +647,7 @@ def chebfitnd(
         if w is not None:
             weights: FloatArray = np.asarray(w, dtype=float).ravel()
             _check_size(weights, len(lhs))
-            lhs = lhs * weights
+            lhs = lhs * weights[:, np.newaxis]
             rhs = rhs * weights
         scl = _scale(lhs)
         return lhs, rhs, scl

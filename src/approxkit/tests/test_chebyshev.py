@@ -1,18 +1,43 @@
 import numpy as np
 import pytest
-from numpy.polynomial.chebyshev import chebvander
+from numpy.polynomial.chebyshev import chebval, chebvander
 
 from approxkit.chebyshev import (
     ChebyshevND,
     _check_domain,
     chebfit_dct,
     chebfitnd,
+    chebgridnd,
     chebvalnd,
     chebvandernd,
+    chebyshev_lobatto_nodes,
     chebyshev_nodes,
     select_degree_aic,
 )
 from approxkit.utils import map_to_interval
+
+
+@pytest.mark.parametrize("n", [1, 2, 3, 4, 8])
+def test_chebyshev_lobatto_nodes_formula(n):
+    expected = -np.cos(np.pi * np.arange(n + 1) / n)
+
+    assert np.allclose(
+        chebyshev_lobatto_nodes(n),
+        expected,
+    )
+
+
+def test_chebyshev_lobatto_nodes_zero():
+    assert np.array_equal(
+        chebyshev_lobatto_nodes(0),
+        np.array([0.0]),
+    )
+
+
+@pytest.mark.parametrize("n", [-1, -2])
+def test_chebyshev_lobatto_nodes_negative_degree(n):
+    with pytest.raises(ValueError, match="n must be non-negative"):
+        chebyshev_lobatto_nodes(n)
 
 
 def test_check_domain_rejects_zero_width_interval():
@@ -253,6 +278,91 @@ def test_chebfitnd_basis_order_3d():
     assert np.allclose(c, expected)
 
 
+def test_chebfitnd_coordinate_dimension_mismatch():
+    x = np.arange(5)
+    y = np.arange(5)
+
+    z = np.zeros(5)
+
+    with pytest.raises(
+        ValueError,
+        match="expected .*dimensional arrays",
+    ):
+        chebfitnd((x, y), z, deg=[2, 2])
+
+
+def test_chebfitnd_empty_coordinate():
+    x = np.array([])
+    z = np.array([])
+
+    with pytest.raises(
+        ValueError,
+        match="non-empty vector",
+    ):
+        chebfitnd((x,), z, deg=[1])
+
+
+def test_chebfitnd_weight_length_mismatch():
+    x = np.linspace(-1, 1, 5)
+    y = x**2
+
+    with pytest.raises(
+        ValueError,
+        match="same length",
+    ):
+        chebfitnd(
+            (x,),
+            y,
+            deg=[2],
+            w=np.ones(4),
+        )
+
+
+def test_chebfitnd_weights_influence_fit():
+    x = np.array([-1.0, 0.0, 1.0])
+
+    y = np.array([0.0, 100.0, 0.0])
+
+    coef_unweighted = chebfitnd(
+        (x,),
+        y,
+        deg=[0],
+    )
+
+    coef_weighted = chebfitnd(
+        (x,),
+        y,
+        deg=[0],
+        w=np.array([1.0, 1000.0, 1.0]),
+    )
+
+    p_unweighted = chebvalnd(coef_unweighted, 0.0)
+    p_weighted = chebvalnd(coef_weighted, 0.0)
+
+    assert abs(p_weighted - 100) < abs(p_unweighted - 100)
+
+
+def test_chebfitnd_constant_fit_with_weights():
+    x = np.array([-1.0, 0.0, 1.0])
+    y = np.array([0.0, 100.0, 0.0])
+
+    w = np.array([1.0, 100.0, 1.0])
+
+    coef = chebfitnd(
+        (x,),
+        y,
+        deg=[0],
+        w=w,
+    )
+
+    expected = np.sum(w**2 * y) / np.sum(w**2)
+
+    assert np.allclose(
+        coef[0],
+        expected,
+    )
+
+
 def test_chebfitnd_reconstructs_linear_function_3d():
     x = chebyshev_nodes(5)
     y = chebyshev_nodes(6)
@@ -284,6 +394,73 @@ def test_chebfitnd_rejects_non_integer_degree():
         match="degrees must be non-negative integers",
     ):
         chebfitnd((X,), X, deg=[1.5])  # type: ignore[list-item]
+
+
+def test_chebgridnd_constant():
+    c = np.zeros((3, 3))
+    c[0, 0] = 1.0
+
+    x = np.linspace(-1, 1, 4)
+    y = np.linspace(-1, 1, 5)
+
+    result = chebgridnd(c, x, y)
+
+    assert np.allclose(result, np.ones((4, 5)))
+
+
+def test_chebgridnd_t1_t1():
+    c = np.zeros((2, 2))
+    c[1, 1] = 1.0
+
+    x = np.array([-1.0, 0.0, 1.0])
+    y = np.array([-1.0, 0.0, 1.0])
+
+    expected = np.outer(x, y)
+
+    result = chebgridnd(c, x, y)
+
+    assert np.allclose(result, expected)
+
+
+def test_chebgridnd_matches_chebvalnd():
+    rng = np.random.default_rng(1234)
+
+    c = rng.normal(size=(3, 4))
+
+    x = np.linspace(-1, 1, 5)
+    y = np.linspace(-1, 1, 6)
+
+    xx, yy = np.meshgrid(x, y, indexing="ij")
+
+    expected = chebvalnd(c, xx, yy)
+
+    result = chebgridnd(c, x, y)
+
+    assert np.allclose(result, expected)
+
+
+def test_chebgridnd_1d_matches_chebval():
+    c = np.array([1.0, 2.0, 3.0])
+
+    x = np.linspace(-1, 1, 10)
+
+    assert np.allclose(
+        chebgridnd(c, x),
+        chebval(x, c),
+    )
+
+
+def test_chebgridnd_accepts_lists():
+    c = np.array([1.0, 2.0])
+
+    result = chebgridnd(c, [-1, 0, 1])
+
+    expected = chebval(
+        np.array([-1.0, 0.0, 1.0]),
+        c,
+    )
+
+    assert np.allclose(result, expected)
 
 
 def test_chebvalnd_supports_broadcastable_coordinates():
@@ -325,6 +502,25 @@ def test_chebvalnd_basis_order():
     c[0, 1] = 1
 
     assert np.allclose(chebvalnd(c, x, y), y)
+
+
+@pytest.mark.parametrize(
+    ("deg", "coords"),
+    [
+        ([2], ([0.0], [0.0])),  # 1 degree, 2 dimensions
+        ([2, 3, 4], ([0.0], [0.0])),  # 3 degrees, 2 dimensions
+        ([1, 2], ([0.0], [0.0], [0.0])),  # 2 degrees, 3 dimensions
+    ],
+)
+def test_chebvandernd_degree_length_mismatch(
+    deg,
+    coords,
+):
+    with pytest.raises(
+        ValueError,
+        match="length of deg must be the same as number of dimensions",
+    ):
+        chebvandernd(deg, *coords)
 
 
 def test_chebvandernd_matches_chebvander():
@@ -529,7 +725,7 @@ def test_chebyshevnd_fit_domain_used_for_evaluation():
 
 def test_select_degree_aic_exact_polynomial():
     x = np.linspace(-1, 1, 100)
-    y = 1 + 2*x + 3*x**2
+    y = 1 + 2 * x + 3 * x**2
 
     deg = select_degree_aic(x, y)
 

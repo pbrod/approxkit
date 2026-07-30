@@ -47,6 +47,7 @@ test = [
 ]
 dev = [
     "pytest",
+    "pytest-cov",
     "ruff",
     "mypy",
     "build",

@@ -5,8 +5,8 @@ from numpy.polynomial.chebyshev import chebval, chebvander
 from approxkit.chebyshev import (
     ChebyshevND,
     _check_domain,
-    chebfit_dct,
     chebfit1d,
+    chebfit_dct,
     chebfitnd,
     chebgridnd,
     chebvalnd,
@@ -115,7 +115,7 @@ def test_chebfit1d_domain():
 
 def test_chebfit1d_exact_polynomial():
     x = np.linspace(-1, 1, 50)
-    y = 1 + 2*x + 3*x**2
+    y = 1 + 2 * x + 3 * x**2
 
     p = chebfit1d(x, y, deg=2)
 
@@ -812,6 +812,7 @@ def test_chebyshevnd_truncate_wrong_length(degrees):
     with pytest.raises(ValueError):
         approx.truncate(*degrees)
 
+
 def test_chebyshevnd_truncate_negative_degree():
     approx = ChebyshevND(np.zeros((3, 3)))
 
@@ -825,9 +826,8 @@ def test_chebyshevnd_truncate_negative_degree():
 def test_chebyshevnd_repr_without_domain():
     approx = ChebyshevND(np.zeros((3, 4)))
 
-    assert repr(approx) == (
-        "ChebyshevND(degree=(2, 3), domain=None)"
-    )
+    assert repr(approx) == ("ChebyshevND(degree=(2, 3), domain=None)")
+
 
 def test_chebyshevnd_repr_with_domain():
     approx = ChebyshevND(
@@ -835,9 +835,7 @@ def test_chebyshevnd_repr_with_domain():
         domain=[(0, 2)],
     )
 
-    assert repr(approx) == (
-        "ChebyshevND(degree=(2,), domain=[[0.0, 2.0]])"
-    )
+    assert repr(approx) == ("ChebyshevND(degree=(2,), domain=[[0.0, 2.0]])")
 
 
 def test_chebyshevnd_domain_mapping():

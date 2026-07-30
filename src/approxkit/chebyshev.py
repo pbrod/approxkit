@@ -954,7 +954,8 @@ def select_degree_aic(
         )
 
         rss = np.sum((y_arr - p(x_arr)) ** 2)
-        rss = max(rss, np.finfo(float).tiny)
+        # Prevent unrealistically small residuals from driving AIC.
+        rss = max(rss, np.finfo(float).eps)
 
         k = degree + 1
 

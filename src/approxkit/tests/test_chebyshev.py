@@ -10,6 +10,7 @@ from approxkit.chebyshev import (
     chebvalnd,
     chebvandernd,
     chebyshev_nodes,
+    select_degree_aic,
 )
 from approxkit.utils import map_to_interval
 
@@ -524,3 +525,60 @@ def test_chebyshevnd_fit_domain_used_for_evaluation():
         np.exp(t),
         atol=1e-6,
     )
+
+
+def test_select_degree_aic_exact_polynomial():
+    x = np.linspace(-1, 1, 100)
+    y = 1 + 2*x + 3*x**2
+
+    deg = select_degree_aic(x, y)
+
+    assert deg == 2
+
+
+def test_select_degree_aic_length_mismatch():
+    x = np.arange(5)
+    y = np.arange(4)
+
+    with pytest.raises(ValueError, match="same length"):
+        select_degree_aic(x, y)
+
+
+def test_select_degree_aic_identical_x():
+    x = np.ones(10)
+    y = np.arange(10)
+
+    with pytest.raises(
+        ValueError,
+        match="must not all be identical",
+    ):
+        select_degree_aic(x, y)
+
+
+def test_select_degree_aic_too_few_points():
+    x = [0, 1]
+    y = [0, 1]
+
+    with pytest.raises(
+        ValueError,
+        match="at least 3 points",
+    ):
+        select_degree_aic(x, y)
+
+
+def test_select_degree_aic_constant_function():
+    x = np.linspace(-1, 1, 50)
+    y = np.full_like(x, 3.0)
+
+    deg = select_degree_aic(x, y)
+
+    assert deg == 0
+
+
+def test_select_degree_aic_small_dataset():
+    x = np.array([0.0, 1.0, 2.0])
+    y = np.array([1.0, 2.0, 3.0])
+
+    deg = select_degree_aic(x, y)
+
+    assert deg == 0

@@ -2,9 +2,9 @@
 
 ApproxKit is a lightweight Python package for approximation theory and numerical analysis.
 
-ApproxKit extends NumPy's Chebyshev approximation tools from one, two, and three dimensions to arbitrary dimensions.
+It extends NumPy's Chebyshev approximation tools from one, two, and three dimensions to arbitrary N-dimensional problems and adds Padé and rational approximation utilities.
 
-It provides tools for:
+ApproxKit provides tools for:
 
 - Fast Chebyshev approximation using discrete cosine transforms (DCT)
 - Multidimensional Chebyshev fitting
@@ -35,7 +35,7 @@ pip install "approxkit[test]"
 
 ## Quick Start
 
-Approximate \(e^x\) on the interval \([0, 2]\):
+Approximate `exp(x)` on the interval `[0, 2]`:
 
 ```python
 import numpy as np
@@ -47,13 +47,17 @@ approx = ChebyshevND.fit_dct(
     domain=[(0, 2)],
 )
 
-x = np.linspace(0, 2, 5)
+x = np.linspace(0, 2, 50)
 
-print(approx(x))
-print(np.exp(x))
+assert np.allclose(
+    approx(x),
+    np.exp(x),
+    atol=1e-10,
+)
+
 ```
 
-The approximation behaves like a regular Python function while automatically handling the mapping between the physical domain and the Chebyshev interval \([-1, 1]\).
+The approximation behaves like a regular Python function while automatically handling the mapping between the physical domain and the Chebyshev interval `[-1, 1]`.
 
 ## Main API
 
@@ -72,13 +76,11 @@ from approxkit import (
 )
 ```
 
-# Why ApproxKit?
+## Why ApproxKit?
 
 ApproxKit complements NumPy's Chebyshev polynomial tools by extending them to arbitrary dimensions.
 
-NumPy provides specialized routines for one-, two-, and three-dimensional Chebyshev fitting, evaluation, and Vandermonde matrix construction.
-
-ApproxKit generalizes these capabilities to arbitrary dimensions.
+NumPy provides specialized routines for one-, two-, and three-dimensional Chebyshev fitting, evaluation, and Vandermonde matrix construction. ApproxKit generalizes these capabilities to N dimensions while also providing high-level approximation objects and Padé approximation utilities.
 
 ## NumPy vs ApproxKit
 
@@ -94,7 +96,7 @@ ApproxKit generalizes these capabilities to arbitrary dimensions.
 | Padé approximation | ✗ | ✓ |
 | Rational least-squares approximation | ✗ | ✓ |
 
-## Familiar NumPy-style API
+## Familiar NumPy-Style API
 
 ApproxKit extends several NumPy Chebyshev functions:
 
@@ -172,61 +174,18 @@ V = chebvandernd(
 )
 ```
 
-## High-Level Approximation Objects
+## API Overview
 
-ApproxKit also provides high-level approximation classes that combine fitting, evaluation, domain handling, and approximation metadata.
-
-### Key ChebyshevND Features
-
-- Automatic mapping between physical domains and `[-1, 1]`
-- N-dimensional fitting
-- N-dimensional evaluation
-- Cartesian-grid evaluation
-- Approximation truncation
-- Convenient callable interface
+In addition to low-level fitting and evaluation routines, ApproxKit
+provides high-level approximation objects that combine fitting,
+evaluation, domain handling, and approximation metadata.
 
 ### ChebyshevND
 
-```python
-approx = ChebyshevND.fit_dct(
-    f,
-    n=(12, 12, 12, 12),
-)
-
-y = approx(x1, x2, x3, x4)
-```
-
-### PadeApproximation
-
-```python
-p = padefit(coeffs)
-
-y = p(x)
-```
-
-## Summary
-
-ApproxKit is particularly useful when working with:
-
-- Four or more dimensions
-- Tensor-product Chebyshev approximations
-- Surrogate models
-- Scientific computing
-- Reduced-order models
-- High-dimensional interpolation
-- High-dimensional regression
-
-In short, ApproxKit aims to provide for arbitrary dimensions what NumPy's Chebyshev module provides for one, two, and three dimensions.
-
-# API Overview
-
-ApproxKit provides two high-level approximation objects.
-
-## ChebyshevND
-
 Represents a one-dimensional or multi-dimensional Chebyshev approximation.
 
-A `ChebyshevND` instance stores Chebyshev coefficients together with optional domain information and behaves like a callable function.
+A `ChebyshevND` instance stores Chebyshev coefficients together with optional 
+domain information and behaves like a callable function.
 
 ```python
 import numpy as np
@@ -238,18 +197,29 @@ approx = ChebyshevND.fit_dct(
     domain=[(0, 2)],
 )
 
-y = approx(1.5)
+y = approx(1.5)  # ≈ exp(1.5)
+
+approx2 = ChebyshevND.fit_dct(
+    lambda x, y: np.tanh(x + y),
+    n=(12, 12),
+)
+
+u = np.linspace(-1, 1)
+X, Y = np.meshgrid(u, u, indexing="ij")
+
+Z = approx2(X, Y)
 ```
 
 ### Main Features
 
-- 1D, 2D, and N-dimensional approximations
-- Automatic domain mapping
-- Fast evaluation
-- Degree truncation
+- Automatic mapping between physical domains and `[-1, 1]`
+- N-dimensional fitting
+- N-dimensional evaluation
 - Cartesian-grid evaluation
+- Approximation truncation
+- Convenient callable interface
 
-### Common Methods
+#### Common Methods
 
 ```python
 approx(x)
@@ -258,7 +228,7 @@ approx.truncate(5)
 approx.copy()
 ```
 
-### Typical Applications
+#### Typical Applications
 
 - Surrogate modeling
 - Numerical integration
@@ -268,27 +238,28 @@ approx.copy()
 
 ---
 
-## PadeApproximation
-
-Represents a rational approximation
-
-\[
-f(x) \approx \frac{P(x)}{Q(x)}
-\]
-
-where \(P(x)\) and \(Q(x)\) are polynomials.
+### PadeApproximation
 
 ```python
 from approxkit import padefit
 
-coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]
+coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]  # Taylor coefs. for exp
 
 p = padefit(coeffs)
 
-y = p(1.0)
+y = p(1.0)  # ≈ exp(1.0)
 ```
 
-### Main Features
+Represents a rational approximation of a function:
+
+`f(x) ≈ P(x) / Q(x)`
+
+where `P(x)` and `Q(x)` are polynomials.
+
+Padé approximations often remain accurate outside the radius of convergence 
+of a Taylor series and can naturally represent poles.
+
+#### Main Features
 
 - Classical Padé approximants
 - Rational least-squares fitting
@@ -296,7 +267,7 @@ y = p(1.0)
 - Optional domain metadata
 - Optional error estimates
 
-### Common Properties
+#### Common Properties
 
 ```python
 p.num
@@ -305,7 +276,7 @@ p.poles
 p.zeros
 ```
 
-### Typical Applications
+#### Typical Applications
 
 - Extending Taylor approximations
 - Rational-function modeling
@@ -313,15 +284,15 @@ p.zeros
 - Engineering approximations
 - Reduced-order models
 
-# Choosing the Right Fitting Method
+## Choosing the Right Fitting Method
 
 ApproxKit provides several fitting methods optimized for different situations.
 
-## Use chebfit_dct When...
+### Use chebfit_dct When...
 
 You have values sampled on Chebyshev nodes or can efficiently evaluate a function on Chebyshev nodes.
 
-### Advantages
+#### Advantages
 
 - Fastest fitting method
 - Uses a discrete cosine transform (DCT)
@@ -329,7 +300,7 @@ You have values sampled on Chebyshev nodes or can efficiently evaluate a functio
 - Produces Chebyshev coefficients directly
 - Supports multidimensional tensor-product grids
 
-### Typical Use Cases
+#### Typical Use Cases
 
 - Smooth callable functions
 - Values already sampled at Chebyshev nodes
@@ -337,7 +308,7 @@ You have values sampled on Chebyshev nodes or can efficiently evaluate a functio
 - Numerical quadrature
 - Surrogate model generation
 
-### Callable Example
+#### Callable Example
 
 ```python
 import numpy as np
@@ -346,7 +317,7 @@ from approxkit import chebfit_dct
 c = chebfit_dct(np.tanh, n=25)
 ```
 
-### Sampled-Value Example
+#### Sampled-Value Example
 
 ```python
 import numpy as np
@@ -361,24 +332,24 @@ y = np.tanh(x)
 c = chebfit_dct(y)
 ```
 
-### Note
+#### Note
 
 When passing sampled values, the data must already be sampled on a Chebyshev grid. For arbitrary sample locations, use `chebfitnd()`.
 
 ---
 
-## Use chebfitnd When...
+### Use chebfitnd When...
 
 You have data sampled at arbitrary locations and want a least-squares Chebyshev approximation.
 
-### Advantages
+#### Advantages
 
 - Works with arbitrary sample locations
 - Supports weighted least-squares fitting
 - Does not require Chebyshev nodes
 - Suitable for measured or simulated data
 
-### Typical Use Cases
+#### Typical Use Cases
 
 - Experimental measurements
 - Simulation outputs
@@ -386,7 +357,7 @@ You have data sampled at arbitrary locations and want a least-squares Chebyshev 
 - Curve fitting
 - Surface fitting
 
-### Example
+#### Example
 
 ```python
 coef = chebfitnd(
@@ -398,25 +369,25 @@ coef = chebfitnd(
 
 ---
 
-## Use padefit When...
+### Use padefit When...
 
 You know the Taylor-series coefficients of a function.
 
-### Advantages
+#### Advantages
 
 - Computes a classical Padé approximant
 - Often converges beyond the Taylor radius of convergence
 - Naturally represents poles
 - Produces an exact rational approximation from the supplied series coefficients
 
-### Typical Use Cases
+#### Typical Use Cases
 
 - Symbolic mathematics
 - Power-series acceleration
 - Analytic approximations
 - Asymptotic analysis
 
-### Example
+#### Example
 
 ```python
 coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]
@@ -426,25 +397,25 @@ p = padefit(coeffs)
 
 ---
 
-## Use padefitlsq When...
+### Use padefitlsq When...
 
 You have function evaluations or sampled data and want a rational approximation.
 
-### Advantages
+#### Advantages
 
 - Fits directly from sampled values
 - Often achieves high accuracy using relatively few coefficients
 - Useful on wide intervals
 - Includes fitting-error metadata
 
-### Typical Use Cases
+#### Typical Use Cases
 
 - Wide-domain approximation
 - Near-singular behavior
 - Reduced-order models
 - Compact rational approximations
 
-### Example
+#### Example
 
 ```python
 import numpy as np
@@ -459,7 +430,7 @@ p = padefitlsq(
 )
 ```
 
-# Performance Guidelines
+## Performance Guidelines
 
 | Situation | Recommended Method |
 |------------|-------------------|
@@ -478,9 +449,13 @@ p = padefitlsq(
 - Use `padefit()` when Taylor coefficients are available.
 - Use `padefitlsq()` when a rational approximation is desired from sampled values.
 
-# Examples
+## Examples
 
-## 1D Chebyshev Approximation
+The examples below illustrate typical ApproxKit workflows,
+from one-dimensional Chebyshev approximation to multidimensional
+least-squares fitting and rational approximation.
+
+### 1D Chebyshev Approximation
 
 ```python
 import numpy as np
@@ -492,7 +467,7 @@ x = np.linspace(-1, 1, 100)
 y = chebvalnd(c, x)
 ```
 
-## 2D Chebyshev Approximation
+### 2D Chebyshev Approximation
 
 ```python
 import numpy as np
@@ -511,7 +486,7 @@ X, Y = np.meshgrid(x, x, indexing="ij")
 Z = approx(X, Y)
 ```
 
-## 4D Least-Squares Approximation
+### 4D Least-Squares Approximation
 
 ```python
 coef = chebfitnd(
@@ -521,7 +496,7 @@ coef = chebfitnd(
 )
 ```
 
-## Padé Approximation
+### Padé Approximation
 
 ```python
 from approxkit import padefit
@@ -533,7 +508,7 @@ p = padefit(coeffs)
 y = p(1.0)
 ```
 
-## Rational Least-Squares Approximation
+### Rational Least-Squares Approximation
 
 ```python
 import numpy as np
@@ -548,7 +523,7 @@ p = padefitlsq(
 )
 ```
 
-## Interval Mapping
+### Interval Mapping
 
 ```python
 from approxkit import (
@@ -562,7 +537,7 @@ y = map_to_interval(x, 2, 4)
 z = map_from_interval(y, 2, 4)
 ```
 
-## Running Tests
+### Running Tests
 
 ```python
 import approxkit
@@ -576,7 +551,7 @@ or
 pytest --pyargs approxkit
 ```
 
-## Development
+### Development
 
 ```bash
 git clone https://github.com/pbrod/approxkit.git

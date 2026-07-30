@@ -6,6 +6,7 @@ from approxkit.chebyshev import (
     ChebyshevND,
     _check_domain,
     chebfit_dct,
+    chebfit1d,
     chebfitnd,
     chebgridnd,
     chebvalnd,
@@ -92,6 +93,33 @@ def test_chebyshev_nodes_invalid_degree():
 
     with pytest.raises(ValueError):
         chebyshev_nodes(-1)
+
+
+def test_chebfit1d_domain():
+    x = np.linspace(0, 2, 50)
+    y = np.exp(x)
+
+    p = chebfit1d(
+        x,
+        y,
+        deg=8,
+        domain=(0, 2),
+    )
+
+    assert np.allclose(
+        p(x),
+        y,
+        atol=1e-2,
+    )
+
+
+def test_chebfit1d_exact_polynomial():
+    x = np.linspace(-1, 1, 50)
+    y = 1 + 2*x + 3*x**2
+
+    p = chebfit1d(x, y, deg=2)
+
+    assert np.allclose(p(x), y)
 
 
 def test_chebfit_dct_non_square_grid():
@@ -659,6 +687,157 @@ def test_chebvandernd_rejects_mismatched_shapes():
         match="same shape",
     ):
         chebvandernd([2, 2], x, y)
+
+
+def test_chebyshevnd_degree():
+    coef = np.zeros((3, 4, 5))
+
+    approx = ChebyshevND(coef)
+
+    assert approx.degree == (2, 3, 4)
+
+
+def test_chebyshevnd_shape():
+    coef = np.zeros((3, 4))
+
+    approx = ChebyshevND(coef)
+
+    assert approx.shape == (3, 4)
+
+
+def test_chebyshevnd_eval_normalized():
+    coef = np.array([1.0, 2.0])
+
+    approx = ChebyshevND(
+        coef,
+        domain=[(0, 2)],
+    )
+
+    x = np.array([-1.0, 0.0, 1.0])
+
+    expected = chebvalnd(coef, x)
+
+    assert np.allclose(
+        approx.eval_normalized(x),
+        expected,
+    )
+
+
+def test_chebyshevnd_copy():
+    coef = np.array([1.0, 2.0])
+
+    approx = ChebyshevND(
+        coef,
+        domain=[(0, 2)],
+    )
+
+    copied = approx.copy()
+
+    assert copied is not approx
+    assert np.allclose(copied._coef, approx._coef)
+    assert np.allclose(copied._domain, approx._domain)
+
+    copied._coef[0] = 99
+
+    assert approx._coef[0] == 1.0
+
+
+def test_chebyshevnd_grid():
+    coef = np.zeros((2, 2))
+    coef[1, 1] = 1.0
+
+    approx = ChebyshevND(coef)
+
+    x = np.array([-1.0, 0.0, 1.0])
+    y = np.array([-1.0, 0.0, 1.0])
+
+    expected = chebgridnd(coef, x, y)
+
+    assert np.allclose(
+        approx.grid(x, y),
+        expected,
+    )
+
+
+def test_chebyshevnd_grid_uses_domain():
+    coef = np.array([0.0, 1.0])
+
+    approx = ChebyshevND(
+        coef,
+        domain=[(0, 2)],
+    )
+
+    x = np.array([0.0, 1.0, 2.0])
+
+    assert np.allclose(
+        approx.grid(x),
+        [-1.0, 0.0, 1.0],
+    )
+
+
+def test_chebyshevnd_truncate():
+    coef = np.arange(12.0).reshape(3, 4)
+
+    approx = ChebyshevND(
+        coef,
+        domain=[(-1, 1), (-1, 1)],
+    )
+
+    truncated = approx.truncate(1, 2)
+
+    assert truncated.shape == (2, 3)
+
+    assert np.allclose(
+        truncated._coef,
+        coef[:2, :3],
+    )
+
+    assert np.allclose(
+        truncated._domain,
+        approx._domain,
+    )
+
+
+@pytest.mark.parametrize(
+    "degrees",
+    [
+        (),
+        (1,),
+        (1, 2, 3),
+    ],
+)
+def test_chebyshevnd_truncate_wrong_length(degrees):
+    approx = ChebyshevND(np.zeros((3, 3)))
+
+    with pytest.raises(ValueError):
+        approx.truncate(*degrees)
+
+def test_chebyshevnd_truncate_negative_degree():
+    approx = ChebyshevND(np.zeros((3, 3)))
+
+    with pytest.raises(
+        ValueError,
+        match="non-negative",
+    ):
+        approx.truncate(-1, 1)
+
+
+def test_chebyshevnd_repr_without_domain():
+    approx = ChebyshevND(np.zeros((3, 4)))
+
+    assert repr(approx) == (
+        "ChebyshevND(degree=(2, 3), domain=None)"
+    )
+
+def test_chebyshevnd_repr_with_domain():
+    approx = ChebyshevND(
+        np.zeros((3,)),
+        domain=[(0, 2)],
+    )
+
+    assert repr(approx) == (
+        "ChebyshevND(degree=(2,), domain=[[0.0, 2.0]])"
+    )
 
 
 def test_chebyshevnd_domain_mapping():

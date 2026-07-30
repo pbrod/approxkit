@@ -34,9 +34,9 @@ jobs:
 
       - run: pytest --pyargs approxkit --cov=approxkit
 
-      - run: pip install ruff mypy
-
-      - run: ruff check .
+      - name: Ruff check
+        run: ruff --version
+        run: ruff check .
 
       - name: Type check
         run: mypy src

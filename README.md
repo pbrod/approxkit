@@ -28,7 +28,7 @@ pip install "approxkit[test]"
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.11+
 - NumPy
 - SciPy
 - mpmath

@@ -5,7 +5,6 @@
 [![License](https://img.shields.io/pypi/l/approxkit.svg)](LICENSE.txt)
 [![CI Status](https://github.com/pbrod/approxkit/actions/workflows/tests.yml/badge.svg)](https://github.com/pbrod/approxkit/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/pbrod/approxkit/branch/main/graph/badge.svg)](https://codecov.io/gh/pbrod/approxkit)
-[![Downloads](https://static.pepy.tech/badge/approxkit)](https://pepy.tech/project/approxkit)
 [![Ruff](https://img.shields.io/badge/lint-ruff-blueviolet)](https://github.com/astral-sh/ruff)
 [![Mypy](https://img.shields.io/badge/type--checked-mypy-blue)](http://mypy-lang.org/)
 

@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,23 +29,42 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - run: python -m pip install --upgrade pip
 
       - run: pip install -e ".[dev]"
 
-      - run: pytest --pyargs approxkit --cov=approxkit
+      - name: Run test suite
+        run: pytest --pyargs approxkit
 
       - name: Ruff check
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         run: |
           ruff --version
           ruff check .
 
       - name: Type check
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         run: mypy src
 
-      - run: python -m build
+      - name: Build package and validate metadata
+        if: matrix.python-version == '3.13'
+        run:  |
+          python -m build
+          twine check dist/*
 
-      - run: twine check dist/*
+      - name: Coverage
+        if: matrix.python-version == '3.13'
+        run: |
+          pytest --pyargs approxkit \
+            --cov=approxkit \
+            --cov-branch \
+            --cov-report=xml
+
+      - name: Upload results to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: pbrod/approxkit

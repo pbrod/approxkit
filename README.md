@@ -188,23 +188,33 @@ Uses discrete cosine transforms to compute coefficients efficiently.
 
 ```python
 import numpy as np
+from numpy.polynomial import Polynomial
 from approxkit import padefit, padefitlsq
 
 x = np.linspace(0, 2, 100)
 
-# Classical Padé approximation from Taylor coefficients
-coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]  # exp
-
-p = padefit(coeffs)
+# Taylor polynomial for exp
+p = Polynomial(
+    [1, 1, 1 / 2, 1 / 6, 1 / 24]
+)
 
 assert np.allclose(
     p(x),
+    np.exp(x),
+    atol=1e-1,
+)
+
+# Classical Padé approximation from Taylor coefficients
+pade = padefit(p.coef)
+
+assert np.allclose(
+    pade(x),
     np.exp(x),
     atol=1e-2,
 )
 
 # Rational least-squares fit from sampled values
-p2 = padefitlsq(
+rational = padefitlsq(
     np.exp,
     m=3,
     n=3,
@@ -213,11 +223,13 @@ p2 = padefitlsq(
 )
 
 assert np.allclose(
-    p2(x),
+    rational(x),
     np.exp(x),
     atol=1e-6,
 )
 ```
+
+Compared with a Taylor polynomial of the same order, Padé and rational least-squares approximations often achieve substantially higher accuracy over a finite interval.
 
 Supports both classical Padé approximation and least-squares rational fitting.
 

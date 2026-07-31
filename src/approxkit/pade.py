@@ -155,25 +155,28 @@ def padefit(
     >>> from numpy.polynomial import Polynomial
     >>> import scipy.special as sp
 
-    >>> c = Polynomial(1./sp.gamma(np.arange(1, 8)))
-    >>> p = padefit(c.coef)
+    >>> p = Polynomial(1./sp.gamma(np.arange(1, 8)))
+    >>> p1 = padefit(p.coef)
 
-    >>> np.allclose(p.numerator.coef,
+    >>> np.allclose(p1.numerator.coef,
     ...             [1.0, 0.66666667, 0.2, 0.03333333, 0.00277778])
     True
-    >>> np.allclose(p.denominator.coef,
+    >>> np.allclose(p1.denominator.coef,
     ...             [1.0, -0.33333333, 0.03333333])
     True
 
     >>> x = np.linspace(0, 2)
-    >>> np.allclose(p(x), np.exp(x), atol=1e-2)
+
+    >>> np.allclose(p(x), np.exp(x), atol=1e-1)
+    True
+    >>> np.allclose(p1(x), np.exp(x), atol=1e-2)
     True
 
     >>> import matplotlib.pyplot as plt
     >>> x = np.linspace(0, 4)
     >>> h0 = plt.plot(x, np.exp(x), 'r.', label='exp')
-    >>> h1 = plt.plot(x, p(x), 'g', label=f'pade {len(p.num.coef)} {len(p.den.coef)}')
-    >>> h2 = plt.plot(x, c(x), label=f'taylor {len(c.coef)}')
+    >>> h1 = plt.plot(x, p1(x), 'g', label=f'pade {len(p1.num.coef)} {len(p1.den.coef)}')
+    >>> h2 = plt.plot(x, p(x), label=f'taylor {len(p.coef)}')
     >>> h3 = plt.legend()
     >>> plt.close()
 

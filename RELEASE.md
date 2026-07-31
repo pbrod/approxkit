@@ -77,7 +77,71 @@ The package must pass CI before any release.
 
 ---
 
-# 3. TestPyPI Release
+# 3. Update the Changelog
+
+Before creating a release, update `CHANGELOG.md`.
+
+Generate the commit history since the previous release tag:
+
+```bash
+git log vX.Y.Z..HEAD --oneline > log.txt
+```
+
+Example:
+
+```bash
+git log v0.1.0..HEAD --oneline > log.txt
+```
+
+Review the generated commit list and summarize the changes into user-facing release notes.
+
+A convenient workflow is:
+
+1. Generate `log.txt`.
+2. Use an AI assistant to summarize the commits.
+3. Group changes into categories such as:
+   - Added
+   - Changed
+   - Improved
+   - Fixed
+   - Documentation
+   - Build & Infrastructure
+4. Paste the summary into `CHANGELOG.md`.
+5. Review and edit the text for accuracy and clarity.
+
+Example:
+
+```markdown
+# Changelog
+
+## v0.2.0
+
+### Added
+
+- Added automatic polynomial degree selection via `select_degree_aic()`.
+
+### Improved
+
+- Improved numerical stability of AIC-based model selection.
+- Expanded test coverage for Chebyshev approximation utilities.
+
+### Documentation
+
+- Reorganized the README.
+- Added API overview and method selection guide.
+```
+
+Commit the updated changelog:
+
+```bash
+git add CHANGELOG.md
+git commit -m "docs: update changelog for vX.Y.Z"
+git push
+```
+
+---
+
+# 4. TestPyPI Release
 
 Before publishing a new release to PyPI, test the package on TestPyPI.
 
@@ -147,7 +211,8 @@ If everything works correctly, proceed with the real release.
 
 ---
 
-# 4. Create Release
+
+# 5. Create Release
 
 ApproxKit uses `setuptools-scm`.
 
@@ -177,7 +242,7 @@ contains the new release tag.
 
 ---
 
-# 5. Publish to PyPI
+# 6. Publish to PyPI
 
 Create a GitHub Release:
 
@@ -213,7 +278,7 @@ which:
 
 ---
 
-# 6. Verify PyPI Installation
+# 7. Verify PyPI Installation
 
 Install the released package:
 
@@ -251,6 +316,7 @@ Before a release:
 
 - [ ] All tests pass locally.
 - [ ] CI passes on GitHub.
+- [ ] CHANGELOG.md updated.
 - [ ] TestPyPI upload succeeds.
 - [ ] TestPyPI installation verified.
 - [ ] Release tag created.
@@ -275,6 +341,9 @@ git push
     │
     ▼
 tests.yml
+    │
+    ▼
+Update CHANGELOG.md
     │
     ▼
 Run test_publish.yml manually

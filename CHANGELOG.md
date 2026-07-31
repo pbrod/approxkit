@@ -48,3 +48,5 @@
 - Updated GitHub Actions workflows to current major versions.
 - Added license file packaging support.
 - Improved CI, build validation, and release workflows.
+- Configured `setuptools-scm` for TestPyPI-compatible development releases.
+- Improved version generation for pre-release and testing workflows.

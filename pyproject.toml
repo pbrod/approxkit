@@ -63,10 +63,11 @@ Repository = "https://github.com/pbrod/approxkit"
 
 [tool.setuptools_scm]
 version_file = "src/approxkit/_version.py"
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-
 
 [tool.setuptools.packages.find]
 where = ["src"]

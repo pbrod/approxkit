@@ -1,5 +1,15 @@
 # ApproxKit
 
+[![PyPI version](https://img.shields.io/pypi/v/approxkit.svg)](https://pypi.org/project/approxkit/)
+[![Python versions](https://img.shields.io/pypi/pyversions/approxkit.svg)](https://pypi.org/project/approxkit/)
+[![License](https://img.shields.io/pypi/l/approxkit.svg)](LICENSE.txt)
+[![CI Status](https://github.com/pbrod/approxkit/actions/workflows/tests.yml/badge.svg)](https://github.com/pbrod/approxkit/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/pbrod/approxkit/branch/main/graph/badge.svg](https://codecov.io/gh/pbrod/approxkit)
+[![Downloads](https://static.pepy.tech/badge/approxkit](https://pepy.tech/project/approxkit)
+[![Ruff](https://img.shields.io/badge/lint-ruff-blueviolet](https://github.com/astral-sh/ruff)
+[![Mypy](https://img.shields.io/badge/type--checked-mypy-blue](http://mypy-lang.org/)
+
+
 ApproxKit extends NumPy's Chebyshev approximation tools to arbitrary dimensions and provides fast polynomial and rational approximation methods for scientific computing.
 
 It supports:
@@ -95,7 +105,7 @@ NumPy provides excellent Chebyshev support for one-, two-, and three-dimensional
 
 ApproxKit generalizes these capabilities to **arbitrary dimensions** while adding:
 
-- Domain-aware approximation objects
+- Domain-aware approximation objects in arbitrary dimensions
 - Fast DCT-based fitting
 - Padé approximation
 - Rational least-squares fitting
@@ -272,7 +282,8 @@ This helps balance approximation accuracy and model complexity.
 | N-dimensional fitting (N > 3) | ✗ | ✓ |
 | N-dimensional evaluation (N > 3) | ✗ | ✓ |
 | N-dimensional Vandermonde matrices (N > 3) | ✗ | ✓ |
-| Domain-aware approximation objects | ✗ | ✓ |
+| Domain-aware approximation objects (1D) | ✓ | ✓ |
+| Domain-aware approximation objects (ND) | ✗ | ✓ |
 | Automatic degree selection (AIC) | ✗ | ✓ |
 | Padé approximation | ✗ | ✓ |
 | Rational least-squares approximation | ✗ | ✓ |

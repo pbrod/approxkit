@@ -260,7 +260,7 @@ Select:
 Tag: vX.Y.Z
 ```
 
-Add release notes and click:
+Copy the corresponding version section from CHANGELOG.md into the release notes and click:
 
 ```text
 Publish release

@@ -165,6 +165,10 @@ def padefit(
     ...             [1.0, -0.33333333, 0.03333333])
     True
 
+    >>> x = np.linspace(0, 2)
+    >>> np.allclose(p(x), np.exp(x), atol=1e-2)
+    True
+
     >>> import matplotlib.pyplot as plt
     >>> x = np.linspace(0, 4)
     >>> h0 = plt.plot(x, np.exp(x), 'r.', label='exp')
@@ -257,6 +261,10 @@ def padefitlsq(
     >>> np.allclose(p.num.coef, [0.99999962, 0.55284547, 0.128842, 0.01443847])
     True
     >>> np.allclose(p.den.coef, [1.0, -0.44716929, 0.07610473, -0.0049658])
+    True
+
+    >>> x = np.linspace(0, 2)
+    >>> np.allclose(p(x), np.exp(x))
     True
 
     >>> import matplotlib.pyplot as plt

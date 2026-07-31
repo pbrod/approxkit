@@ -187,11 +187,36 @@ Uses discrete cosine transforms to compute coefficients efficiently.
 ## Rational Approximation
 
 ```python
-from approxkit import padefit
+import numpy as np
+from approxkit import padefit, padefitlsq
 
-coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]
+x = np.linspace(0, 2, 100)
+
+# Classical Padé approximation from Taylor coefficients
+coeffs = [1, 1, 1 / 2, 1 / 6, 1 / 24]  # exp
 
 p = padefit(coeffs)
+
+assert np.allclose(
+    p(x),
+    np.exp(x),
+    atol=1e-2,
+)
+
+# Rational least-squares fit from sampled values
+p2 = padefitlsq(
+    np.exp,
+    m=3,
+    n=3,
+    a=0,
+    b=2,
+)
+
+assert np.allclose(
+    p2(x),
+    np.exp(x),
+    atol=1e-6,
+)
 ```
 
 Supports both classical Padé approximation and least-squares rational fitting.

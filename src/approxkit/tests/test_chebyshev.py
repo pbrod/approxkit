@@ -959,3 +959,15 @@ def test_select_degree_aic_small_dataset():
     deg = select_degree_aic(x, y)
 
     assert deg == 0
+
+
+@pytest.mark.parametrize("tol", [0.0, -1e-12, -1.0])
+def test_select_degree_aic_invalid_tol(tol):
+    x = [0.0, 1.0, 2.0]
+    y = [0.0, 1.0, 4.0]
+
+    with pytest.raises(
+        ValueError,
+        match="tol must be positive",
+    ):
+        select_degree_aic(x, y, tol=tol)

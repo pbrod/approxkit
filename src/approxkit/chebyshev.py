@@ -881,9 +881,25 @@ def select_degree_aic(
     x: ArrayLike,
     y: ArrayLike,
     max_degree: int = 40,
+    tol: float = 1e-12,
 ) -> int:
     """
     Return optimal degree for Chebyshev polynomial fitting
+
+    Parameters
+    ----------
+    x : array_like
+        Sample points.
+    y : array_like
+        Function values at the sample points ``x``.
+    max_degree : int, optional
+        Maximum degree to consider. The default is 40.
+    tol : float, optional
+        Lower bound for the residual sum of squares used when
+        computing AIC. This prevents unrealistically small
+        residuals from driving the model selection toward
+        unnecessarily high polynomial degrees.
+        Default is 1e-12.
 
     Notes
     -----
@@ -925,6 +941,8 @@ def select_degree_aic(
     --------
     numpy.polynomial.Chebyshev
     """
+    if tol <= 0:
+        raise ValueError("tol must be positive")
 
     x_arr: FloatArray = np.asarray(x, dtype=float).ravel()
     y_arr: FloatArray = np.asarray(y, dtype=float).ravel()
@@ -946,6 +964,7 @@ def select_degree_aic(
     best_degree: int = 0
     best_aic: float = np.inf
     nit: int = 0
+    rss_floor: float = max(tol, np.finfo(float).eps)
 
     for degree in range(max_degree + 1):
         p = Chebyshev.fit(
@@ -956,7 +975,7 @@ def select_degree_aic(
 
         rss = np.sum((y_arr - p(x_arr)) ** 2)
         # Prevent unrealistically small residuals from driving AIC.
-        rss = max(rss, np.finfo(float).eps)
+        rss = max(rss, rss_floor)
 
         k = degree + 1
 

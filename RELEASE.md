@@ -87,7 +87,9 @@ Generate the commit history since the previous release tag:
 git log vX.Y.Z..HEAD --oneline > log.txt
 ```
 
-Example:
+Use the most recent released version tag.
+
+For example, when preparing `v0.2.0` after releasing `v0.1.0`:
 
 ```bash
 git log v0.1.0..HEAD --oneline > log.txt

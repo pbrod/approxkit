@@ -7,7 +7,7 @@
 [![Coverage](https://codecov.io/gh/pbrod/approxkit/branch/main/graph/badge.svg)](https://codecov.io/gh/pbrod/approxkit)
 [![Ruff](https://img.shields.io/badge/lint-ruff-blueviolet)](https://github.com/astral-sh/ruff)
 [![Mypy](https://img.shields.io/badge/type--checked-mypy-blue)](http://mypy-lang.org/)
-
+[![Downloads](https://pepy.tech/badge/approxkit/month)](https://pepy.tech/project/approxkit)
 
 ApproxKit extends NumPy's Chebyshev approximation tools to arbitrary dimensions and provides fast polynomial and rational approximation methods for scientific computing.
 

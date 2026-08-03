@@ -122,6 +122,17 @@ def test_chebfit1d_exact_polynomial():
     assert np.allclose(p(x), y)
 
 
+def test_chebfit_dct_accepts_precomputed_values():
+    """Test chebfit_dct with precomputed values instead of a callable."""
+    n = 9
+    x = chebyshev_nodes(n)
+    values = np.exp(x)
+    coef = chebfit_dct(values)
+    y = chebvalnd(coef, x)
+
+    assert np.allclose(y, values, atol=1e-12)
+
+
 def test_chebfit_dct_non_square_grid():
     c = chebfit_dct(lambda x, y: x + y, n=(3, 5), indexing="xy")
     expected = np.zeros((3, 5))

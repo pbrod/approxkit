@@ -7,6 +7,40 @@ from numpy.polynomial import Polynomial
 from approxkit.pade import PadeApproximation, padefit, padefitlsq
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        (
+            {},
+            "PadeApproximation(m=1, n=2)",
+        ),
+        (
+            {"domain": (0.0, 2.0)},
+            "PadeApproximation(m=1, n=2, domain=(0.0, 2.0))",
+        ),
+        (
+            {"max_error": 1.23456789e-4},
+            "PadeApproximation(m=1, n=2, max_error=1.235e-04)",
+        ),
+        (
+            {
+                "domain": (0.0, 2.0),
+                "max_error": 1.23456789e-4,
+            },
+            "PadeApproximation(m=1, n=2, domain=(0.0, 2.0), max_error=1.235e-04)",
+        ),
+    ],
+)
+def test_padeapproximation_repr(kwargs, expected):
+    p = PadeApproximation(
+        numerator=Polynomial([1, 2]),
+        denominator=Polynomial([1, 2, 3]),
+        **kwargs,
+    )
+
+    assert repr(p) == expected
+
+
 def test_padeapproximation_properties():
     p = PadeApproximation(
         Polynomial([1, 2]),

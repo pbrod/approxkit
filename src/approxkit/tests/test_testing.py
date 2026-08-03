@@ -1,7 +1,7 @@
 import pytest
 
 import approxkit
-from approxkit import  testing
+from approxkit import testing
 
 
 def test_test_function_exists():

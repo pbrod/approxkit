@@ -11,20 +11,24 @@ permissions:
   contents: read
 
 jobs:
-  
   test:
-    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
         python-version:
           - "3.11"
           - "3.12"
           - "3.13"
           - "3.14"
 
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v5
@@ -43,11 +47,11 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Run test suite
-        if: matrix.python-version != '3.13'
+        if: matrix.os != 'ubuntu-latest' || matrix.python-version != '3.13'
         run: pytest --pyargs approxkit
 
       - name: Coverage
-        if: matrix.python-version == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         run: |
           pytest --pyargs approxkit \
             --cov=approxkit \
@@ -55,23 +59,23 @@ jobs:
             --cov-report=xml
 
       - name: Ruff check
-        if: matrix.python-version == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         run: |
           ruff --version
           ruff check .
 
       - name: Type check
-        if: matrix.python-version == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         run: mypy src
 
       - name: Build package and validate metadata
-        if: matrix.python-version == '3.13'
-        run:  |
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        run: |
           python -m build
           twine check dist/*
 
       - name: Upload results to Codecov
-        if: matrix.python-version == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
